@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "src/mu.c"
+#include "src/iron.c"
 
 void _help(char *_arg1) {
 	printf("\nUsage: %s <subcommand> [args]\n", _arg1);

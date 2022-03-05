@@ -1,4 +1,4 @@
-#include "include/mu.h"
+#include "include/iron.h"
 #include "io.c"
 #include "lexer.c"
 
@@ -12,13 +12,11 @@ void mu_compile_file(char* filename) {
 	char* src = read_file(filename);
 	lexer_t* lexer = init_lexer(src);
 	token_t* tok = 0;
-
 	size_t depth = 0;
-
+	
+	printf("\n");
 	while((tok = lexer_next_token(lexer))->type != TOKEN_EOF) {
-		printf("TOK(%s) (%d)\n", tok->value, tok->type);
+		printf("\t%s\n", token_to_str(tok));
 	}
-
-	printf("End of file: %s - %d", tok->value, tok->type);
 
 }

@@ -35,11 +35,13 @@ token_t* lexer_parse_id(lexer_t* lexer) {
 	char* value = calloc(1, sizeof(char));
 	int size = 1;
 
-	while(isalnum(lexer->c)) {
+	while(isalpha(lexer->c)) {
 		value = realloc(value, (++size) * sizeof(char));
 		strncat(value, (char[]) {lexer->c, '\0'}, 2);
 		lexer_advance(lexer);
 	}
+
+	lexer->c = lexer->src[--lexer->i];
 
 	return init_token(value, TOKEN_ID);
 }
@@ -53,6 +55,8 @@ token_t* lexer_parse_number(lexer_t* lexer) {
 		strncat(value, (char[]) {lexer->c, '\0'}, 2);
 		lexer_advance(lexer);
 	}
+
+	lexer->c = lexer->src[--lexer->i];
 
 	return init_token(value, TOKEN_NUMBER);
 }
@@ -124,7 +128,8 @@ token_t* lexer_next_token(lexer_t* lexer) {
 			case '{': return lexer_advance_current(lexer, TOKEN_LBRACE);
 			case '}': return lexer_advance_current(lexer, TOKEN_RBRACE);
 			case ',': return lexer_advance_current(lexer, TOKEN_COMMA);
-			case ';': return lexer_advance_current(lexer, TOKEN_COLON);
+			case ':': return lexer_advance_current(lexer, TOKEN_COLON);
+			case ';': return lexer_advance_current(lexer, TOKEN_SEMI);
 			case '<': return lexer_advance_current(lexer, TOKEN_LT);
 			case '>': return lexer_advance_current(lexer, TOKEN_GT);
 			case '"': return lexer_advance_with(lexer, lexer_parse_string(lexer));
