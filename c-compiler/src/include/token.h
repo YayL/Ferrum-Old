@@ -1,5 +1,5 @@
-#ifndef MU_TOKEN_H
-#define MU_TOKEN_H
+#ifndef IRON_TOKEN_H
+#define IRON_TOKEN_H
 
 typedef struct TOKEN_STRUCT {
 	char* value;
@@ -27,6 +27,7 @@ typedef struct TOKEN_STRUCT {
 } token_t;
 
 token_t* init_token(char* value, int type);
-static const char* token_type_to_str(int type);
+const char* token_type_to_str(int type);
+char* token_to_str(token_t* token);
 
 #endif

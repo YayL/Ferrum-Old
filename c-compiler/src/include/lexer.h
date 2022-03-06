@@ -1,5 +1,5 @@
-#ifndef MU_LEXER_H
-#define MU_LEXER_H
+#ifndef IRON_LEXER_H
+#define IRON_LEXER_H
 
 #include "token.h"
 

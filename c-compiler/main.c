@@ -20,7 +20,7 @@ int _callCommand(int count, char **arguments) {
 			exit(1);
 		}
 		// printf("Compiling program...\n");
-		mu_compile_file(arguments[2]);
+		iron_compile_file(arguments[2]);
 		printf("\n");
 	} else if(!strcmp(arguments[1], "sim") || !strcmp(arguments[1], "s")) {
 		printf("Simulating program...\n");

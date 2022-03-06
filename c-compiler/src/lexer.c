@@ -16,9 +16,8 @@ lexer_t* init_lexer(char* src) {
 }
 
 void lexer_advance(lexer_t* lexer) {
-	if(lexer->i < lexer->size && lexer->c != '\0') {
+	if(lexer->i < lexer->size && lexer->c != '\0')
 		lexer->c = lexer->src[++lexer->i];
-	}
 }
 
 void lexer_skip_whitespaces(lexer_t* lexer) {
@@ -41,8 +40,6 @@ token_t* lexer_parse_id(lexer_t* lexer) {
 		lexer_advance(lexer);
 	}
 
-	lexer->c = lexer->src[--lexer->i];
-
 	return init_token(value, TOKEN_ID);
 }
 
@@ -55,8 +52,6 @@ token_t* lexer_parse_number(lexer_t* lexer) {
 		strncat(value, (char[]) {lexer->c, '\0'}, 2);
 		lexer_advance(lexer);
 	}
-
-	lexer->c = lexer->src[--lexer->i];
 
 	return init_token(value, TOKEN_NUMBER);
 }
@@ -110,16 +105,16 @@ token_t* lexer_next_token(lexer_t* lexer) {
 		lexer_skip_whitespaces(lexer);
 
 		if(isalpha(lexer->c))
-			return lexer_advance_with(lexer, lexer_parse_id(lexer));
+			return lexer_parse_id(lexer);
 		
 		if(isdigit(lexer->c))
-			return lexer_advance_with(lexer, lexer_parse_number(lexer));
+			return lexer_parse_number(lexer);
 
 		switch(lexer->c) {
 
 			case '=': {
 				if(lexer_peek(lexer, 1) == '>'){
-					return lexer_advance_with(lexer, init_token("=>", TOKEN_DEF));
+					return lexer_advance_with(lexer, lexer_advance_with(lexer, init_token("=>", TOKEN_DEF)));
 				}
 				return lexer_advance_with(lexer, init_token("=", TOKEN_EQUALS));
 			}

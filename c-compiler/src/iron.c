@@ -1,22 +1,26 @@
 #include "include/iron.h"
 #include "io.c"
 #include "lexer.c"
+#include "parser.c"
 
-void mu_compile(char* src) {
+void iron_compile(char* src) {
 
-	
+	lexer_t* lexer = init_lexer(src);
+	parser_t* parser = init_parser(lexer);
+	ast_t* root = parser_parse(parser);
+
+	token_t* tok = 0;
+
+	while((tok = lexer_next_token(lexer))->type != TOKEN_EOF) {
+		printf("%s\n", token_to_str(tok));
+	}
+
 }
 
-void mu_compile_file(char* filename) {
+void iron_compile_file(char* filename) {
 
 	char* src = read_file(filename);
-	lexer_t* lexer = init_lexer(src);
-	token_t* tok = 0;
-	size_t depth = 0;
-	
-	printf("\n");
-	while((tok = lexer_next_token(lexer))->type != TOKEN_EOF) {
-		printf("\t%s\n", token_to_str(tok));
-	}
+	iron_compile(src);
+	free(src);
 
 }
