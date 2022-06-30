@@ -1,8 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "src/iron.c"
+#include "common.h"
+#include "iron.h"
 
 void _help(char *_arg1) {
 	printf("\nUsage: %s <subcommand> [args]\n", _arg1);
@@ -13,16 +10,15 @@ void _help(char *_arg1) {
 
 int _callCommand(int count, char **arguments) {
 
-	if(!strcmp(arguments[1], "com") || !strcmp(arguments[1], "c")) {
+	if(!strncmp(arguments[1], "com", 3) || !strncmp(arguments[1], "c", 1)) {
 		if(count < 3) {
 			_help(arguments[0]);
 			printf("ERROR: Missing filename\n");
 			exit(1);
 		}
-		// printf("Compiling program...\n");
 		iron_compile_file(arguments[2]);
 		printf("\n");
-	} else if(!strcmp(arguments[1], "sim") || !strcmp(arguments[1], "s")) {
+	} else if(!strncmp(arguments[1], "sim", 3) || !strncmp(arguments[1], "s", 1)) {
 		printf("Simulating program...\n");
 	} else {
 		_help(arguments[0]);

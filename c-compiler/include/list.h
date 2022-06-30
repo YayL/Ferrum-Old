@@ -1,0 +1,60 @@
+#pragma once
+
+#include "common.h"
+
+struct List {
+	void** items;
+	size_t size;
+	size_t capacity;
+	size_t item_size;
+};
+
+/**
+ * @brief Initialize a new list with size n
+ * 
+ * @param n
+ * @return struct List* 
+ */
+
+struct List * init_list(size_t);
+
+
+/**
+ * @brief Free an initialized list
+ * 
+ */
+void free_list(struct List *);
+
+/**
+ * @brief Push a new item to the top of the list
+ * 
+ * @param list 
+ * @param item
+ */
+
+void list_push(struct List *, void *);
+
+/**
+ * @brief Remove the last element in the list from memory but preserve capacity.
+ * 
+ * @param list 
+ * @return void* 
+ */
+
+void* list_pop(struct List *);
+
+/**
+ * @brief Return the item at a certain index in the list
+ * 
+ * @param list 
+ * @param index 
+ * @return void* 
+ */
+
+void* list_at(struct List *, int);
+
+/**
+ * @brief Print a list with a neat format
+ * 
+ */
+void print_list(struct List *);

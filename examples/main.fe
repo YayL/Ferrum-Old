@@ -1,3 +1,7 @@
-main : int (argc: int, args: Array<string>) => {
-	return 0; // optional
-} 
+main : int (argc: int, argv: string[]) => {
+	print(argv[0]);
+	print(argv[1]);
+	show(argc);
+	show(argc);
+	return argc; // optional
+}

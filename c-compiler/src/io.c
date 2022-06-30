@@ -1,7 +1,6 @@
-#include "include/io.h"
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
+#include "io.h"
+
+#include "common.h"
 
 char* read_file(const char* filename) {
 
@@ -28,4 +27,20 @@ char* read_file(const char* filename) {
 		free(line);
 
 	return buffer;
+}
+
+void write_file(const char * filename, char * write_buffer) {
+	FILE * fp;
+	
+	fp = fopen(filename, "wb");
+	if (fp == NULL) {
+		printf("Error: Unable to open file: '%s'\n", filename);
+		exit(1);
+	}
+
+	if (!fputs(write_buffer, fp)) {
+		printf("Error: Unable to write buffer to file: '%s'", filename);
+		exit(1);
+	}
+	fclose(fp);
 }

@@ -1,8 +1,12 @@
-#include "include/list.h"
+#include "list.h"
 
-list_t* init_list(size_t item_size) {
+#include "AST.h"
+#include <memory.h>
 
-	list_t* list = calloc(1, sizeof(struct LIST_STRUCT));
+
+struct List * init_list(size_t item_size) {
+
+	struct List * list = calloc(1, sizeof(struct List));
 	list->size = 0;
 	list->capacity = 0;
 	list->item_size = item_size;
@@ -10,7 +14,18 @@ list_t* init_list(size_t item_size) {
 	return list;
 }
 
-void list_push(list_t* list, void* item) {
+void free_list(struct List * list) {
+
+	for(size_t i = 0; i < list->size; ++i) {
+		memset(list->items[i], 0, list->item_size);
+		free(list->items[i]);
+	}
+	free(list->items);
+	free(list);
+
+}
+
+void list_push(struct List * list, void* item) {
 	if (!list->size++) { // Incrementing here as it is just easier and not wasting a line for it
 		list->items = calloc(1, list->item_size);
 		list->capacity = 1;
@@ -24,19 +39,29 @@ void list_push(list_t* list, void* item) {
 	list->items[list->size - 1] = item;
 }
 
-void* list_pop(list_t* list) {
+void* list_pop(struct List * list) {
 	if(!list->size) 
 		return NULL;
 
+	list->items[list->size] = NULL;
 	free(list->items[list->size]);
 }
 
 
-void* list_at(list_t* list, int index) {
+void* list_at(struct List * list, int index) {
 
 	if(0 <= index && index < list->size);
 		return list->items[index];
 
 	return NULL;
+
+}
+
+void print_list(struct List * list) {
+
+	printf("<size=%d, capacity=%d, item_size=%d>\n", list->size, list->capacity, list->item_size);
+	for(size_t i = 0; i < list->size; ++i) {
+		printf("\t%s\n", ast_to_str(list->items[i]));
+	}
 
 }

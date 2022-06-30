@@ -1,12 +1,12 @@
 main : int () => {
 
-	int a = 2;
-	int b = 3;
-	int c = 1;
+	a : int = 2;
+	b : int = 3;
+	c : int = 1;
 
-	print(a+b);
-	print(a + b * c);
-	print(a - b);
-	print(a * b);
-	print(a / b);
+	print(a);
+	// print(a - b);
+	// print(a * b);
+	// print(a / b);
+	// print(a + b * c); // print(a + (b * c))
 }
