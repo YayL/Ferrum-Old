@@ -3,84 +3,129 @@
 #include "common.h"
 #include "as_f.h"
 
-struct Ast * print(struct Visitor * visitor, struct Ast * node, struct List * list) {
+void set_arg_length(struct Visitor * visitor, struct Ast * node, unsigned int len) {
+
+	struct Ast * func = visitor_lookup(visitor->node->nodes, node->name);
+	func->int_value = len;
+	node->int_value = len;
+
+}
+
+struct Ast * _builtin_print(struct Visitor * visitor, struct Ast * node, struct List * list) {
 	
-	const char * func_template = 	"print:\n"
-									"push rsi\n"
-									"push rdx\n"
-									"push rax\n"
-									"push rdi\n"
-									"mov rsi, rdi\n"
-									"xor rdx, rdx\n"
-									"strlen:\n"
-									"mov al, [rsi + rdx]\n"
-									"inc rdx\n"
-									"cmp al, 0x0\n"
-									"jnz strlen\n"
-									"dec rdx\n"
-									"mov rax, 1\n"
-									"mov rdi, 1\n"
-									"syscall\n"
-									"mov rsi, newline\n"
-									"mov rdx, newline_len\n"
-									"mov rax, 1\n"
-									"mov rdi, 1\n"
-									"syscall\n"
-									"pop rdi\n"
-									"pop rax\n"
-									"pop rdx\n"
-									"pop rsi\n"
-									"ret\n";
+	const char * func_template = "print:\n"
+				"push rbp\n"
+				"mov rbp, rsp\n"
+				"push rsi\n"
+				"push rdx\n"
+				"push rax\n"
+				"mov rsi, rdi\n"
+				"xor rdx, rdx\n"
+				"strlen:\n"
+				"mov al, [rsi + rdx]\n"
+				"inc rdx\n"
+				"cmp al, 0x0\n"
+				"jnz strlen\n"
+				"dec rdx\n"
+				"mov rax, 1\n"
+				"mov rdi, 1\n"
+				"syscall\n"
+				"mov rsi, newline\n"
+				"mov rdx, newline_len\n"
+				"mov rax, 1\n"
+				"mov rdi, 1\n"
+				"syscall\n"
+				"pop rax\n"
+				"pop rdx\n"
+				"pop rsi\n"
+				"pop rbp\n"
+				"ret\n";
 	
-	size_t size = strlen(visitor->root->str_value) + strlen(func_template) + 1;
-	visitor->root->str_value = realloc(visitor->root->str_value, size);
-	strcat(visitor->root->str_value, func_template);
-	visitor->root->str_value[size - 1] = 0;
+	visitor->builtins = format(visitor->builtins, func_template);
+	
+	set_arg_length(visitor, node, 1);
 
 	return node;
 }
 
-struct Ast * show(struct Visitor * visitor, struct Ast * node, struct List * list) {
+struct Ast * _builtin_put(struct Visitor * visitor, struct Ast * node, struct List * list) {
 
-	const char * func_template = 	"\nshow:\n"
-									"push rdx\n"
-									"push rsi\n"
-									"push rcx\n"
-									"push rbx\n"
-									"mov rax, rdi\n"
-									"xor rdx, rdx\n"
-									"mov rsi, 10\n"
-									"mov rcx, 1\n"
-									"push 10\n"
-									"print_num_push_to_stack:\n"
-										"inc rcx\n"
-										"xor rdx, rdx\n"
-										"idiv rsi\n"
-										"add rdx, 30h\n"
-										"push rdx\n"
-										"cmp rax, 0\n"
-										"jg print_num_push_to_stack\n"
-									"mov rbx, rcx\n"
-									"mov rax, 1\n"
-									"mov rdi, 1\n"
-									"mov rdx, 1\n"
-									"print_num_print_stack:\n"
-										"mov rsi, rsp\n"
-										"syscall\n"
-										"pop rsi\n"
-										"dec rbx\n"
-										"cmp rbx, 0\n"
-										"jg print_num_print_stack\n"
-									"pop rbx\n"
-									"pop rcx\n"
-									"pop rsi\n"
-									"pop rdx\n"
-									"ret\n";
+    if (node->nodes->size != 1 || ((struct Ast *) node->nodes->items[0])->type != AST_STRING) {
+      println("Error [Runtime]: Funtion put takes only one string literal!");
+    }	
+
+    const char * func_template = "put:\n"
+				"push rbp\n"
+				"mov rbp, rsp\n"
+                "push rsi\n"
+                "push rdx\n"
+                "push rax\n"
+                "push rdi\n"
+                "mov rsi, [rbp + 0x18]\n" // length
+                "mov rdx, [rbp + 0x10]\n" // str address
+                "mov rax, 1\n"
+                "mov rdi, 1\n"
+                "syscall\n"
+                "pop rdi\n"
+                "pop rax\n"
+                "pop rdx\n"
+                "pop rsi\n"
+				"pop rbp\n"
+                "ret\n";
 	
-	size_t size = strlen(visitor->root->str_value) + strlen(func_template) + 1;
-	visitor->root->str_value = realloc(visitor->root->str_value, size);
-	strcat(visitor->root->str_value, func_template);
-	visitor->root->str_value[size - 1] = 0;
+	visitor->builtins = format("{2s}", visitor->builtins, func_template); 
+	
+	set_arg_length(visitor, node, 2);
+
+	return node;
+
+}
+
+struct Ast * _builtin_show(struct Visitor * visitor, struct Ast * node, struct List * list) {
+
+	const char * func_template = "\nshow:\n"
+				"push rbp\n"
+				"mov rbp, rsp\n"
+				"push rsi\n"
+				"push rdx\n"
+				"push rax\n"
+				"push rcx\n"
+				"mov rax, rdi\n"
+				"xor rdx, rdx\n"
+				"mov rsi, 10\n"
+				"mov rcx, 1\n"
+				"push 10\n"
+				"show_push_to_stack:\n"
+					"inc rcx\n"
+					"xor rdx, rdx\n"
+					"idiv rsi\n"
+					"add rdx, 30h\n"
+					"push rdx\n"
+					"cmp rax, 0\n"
+				"jg show_push_to_stack\n"
+				"mov rax, 1\n"
+				"mov rdi, 1\n"
+				"mov rdx, 1\n"
+				"show_print_stack:\n"
+					"mov rsi, rsp\n"
+					"push rcx\n"
+					"syscall\n"
+					"pop rcx\n"
+					"pop rsi\n"
+					"dec rcx\n"
+					"cmp rcx, 0\n"
+				"jg show_print_stack\n"
+				"pop rcx\n"
+				"pop rax\n"
+				"pop rdx\n"
+				"pop rsi\n"
+				"pop rbp\n"
+				"ret\n";
+
+
+	visitor->builtins = format("{2s}", visitor->builtins, func_template);
+
+	set_arg_length(visitor, node, 1);
 
 	return node;
 }
@@ -90,10 +135,7 @@ void builtins_register_f_ptr(struct List * list, const char * name, struct Ast *
 
 	struct Ast * f_ptr_print_var = init_ast(AST_VARIABLE);
 
-	char * function_name = calloc(strlen(name) + 1, sizeof(char));
-	strcpy(function_name, name);
-
-	f_ptr_print_var->name = function_name;
+	f_ptr_print_var->name = format("{s}", name);
 	f_ptr_print_var->f_ptr = f_ptr;
 
 	list_push(list, f_ptr_print_var);
@@ -101,7 +143,8 @@ void builtins_register_f_ptr(struct List * list, const char * name, struct Ast *
 
 void init_builtins(struct List * list) {
 
-	builtins_register_f_ptr(list, "print", print);
-	builtins_register_f_ptr(list, "show", show);
+	builtins_register_f_ptr(list, "print", _builtin_print);
+	builtins_register_f_ptr(list, "show", _builtin_show);
+	builtins_register_f_ptr(list, "put", _builtin_put);
 
 }

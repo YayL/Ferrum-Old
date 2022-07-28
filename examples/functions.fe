@@ -1,0 +1,9 @@
+main : int (argc: int, argv: string[]) => {
+	test(argc);
+	return argc;
+}
+
+test : void (argc: int) => {
+	show(argc);
+	return argc;
+}

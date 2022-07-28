@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include <ctype.h>
+#include <stdio.h>
 
 struct Lexer * init_lexer(char* src) {
 
@@ -16,7 +17,7 @@ struct Lexer * init_lexer(char* src) {
 }
 
 void lexer_advance(struct Lexer * lexer) {
-	if(lexer->i < lexer->size && lexer->c != '\0')
+	if(lexer->i < lexer->size && lexer->c != EOF)
 		lexer->c = lexer->src[++lexer->i];
 }
 
@@ -27,18 +28,26 @@ void lexer_skip_whitespaces(struct Lexer * lexer) {
 
 char lexer_peek(struct Lexer * lexer, int offset) {
 	const int index = lexer->i + offset;
-	return lexer->src[index < lexer->size ? index : lexer->size];
+    return lexer->src[index < lexer->size ? index : lexer->size];
 }
 
 struct Token * lexer_parse_id(struct Lexer * lexer) {
-	char* value = calloc(1, sizeof(char));
-	int size = 1;
+	unsigned int copy = lexer->i, size, i = 0;
+	while(isalpha(lexer->c) || lexer->c == '_') lexer_advance(lexer);
+	
+	size = lexer->i - copy;
+	lexer->i -= size;
+	char * value = malloc(sizeof(char) * (size + 1));
 
-	while(isalpha(lexer->c) || lexer->c == '_') {
-		value = realloc(value, (++size) * sizeof(char));
-		value[size - 2] = lexer->c; value[size - 1] = 0;
+	value[0] = lexer->src[lexer->i];
+
+	for (unsigned int i = 1; i < size; ++i) {
 		lexer_advance(lexer);
+		value[i] = lexer->c;
 	}
+	lexer_advance(lexer);
+
+	value[size] = 0;
 
 	return init_token(value, TOKEN_ID);
 }
@@ -62,17 +71,17 @@ struct Token * lexer_parse_string(struct Lexer * lexer) {
 
 	while(lexer->src[++end] != lexer->c) {
 		if(end == lexer->size) {
-			printf("\n[Lexer]: End of file found while reading string\n");
+			println("\n[Lexer]: End of file found while reading string.");
 			exit(1);
 		}
 	}
-	const int len = end - start;
-	char* value = calloc(len, sizeof(char));
-	memcpy(value, &lexer->src[start], len - 1);
-	value[len] = '\0';
+	const size_t length = end - start + 1;
+	char * string = malloc(length * sizeof(char));
+	memcpy(string, &lexer->src[start], length - 1);
+	string[length - 1] = 0;
 	lexer->i = end;
 
-	return init_token(value, TOKEN_STRING);
+	return init_token(string, TOKEN_STRING);
 
 }
 
@@ -91,7 +100,7 @@ struct Token * lexer_advance_current(struct Lexer * lexer, int type) {
 	lexer_advance(lexer);
 
 	#ifdef LEXER_DEBUG
-		printf("Debug [Lexer]: %s [%d]\n", token->value, token->type);
+		println("Debug [Lexer]: {s} [{u}]", token->value, token->type);
 	#endif
 
 	return token;
@@ -101,10 +110,9 @@ struct Token * lexer_advance_current(struct Lexer * lexer, int type) {
 struct Token * lexer_advance_with(struct Lexer * lexer, struct Token * token) {
 	lexer_advance(lexer);
 
-
 	#ifdef LEXER_DEBUG
-		printf("Debug [Lexer]: %s [%d]\n", token->value, token->type);
-		printf("\t\tNext: %c\n", lexer_peek(lexer, 1));
+		println("Debug [Lexer]: {s} [{u}]", token->value, token->type);
+		println("\t\tNext: {c}", lexer_peek(lexer, 1));
 	#endif
 
 	return token;
@@ -112,15 +120,16 @@ struct Token * lexer_advance_with(struct Lexer * lexer, struct Token * token) {
 
 struct Token * lexer_next_token(struct Lexer * lexer) {
 
-	while(lexer->c != '\0') {
-		lexer_skip_whitespaces(lexer);
+	lexer_skip_whitespaces(lexer);
+	if (lexer->c != '\0') {
 
 		if(isalpha(lexer->c) || lexer->c == '_') {
 			return lexer_parse_id(lexer);
 		}
 		
-		if(isdigit(lexer->c))
+		if(isdigit(lexer->c)) {
 			return lexer_parse_int(lexer);
+		}
 
 		switch(lexer->c) {
 
@@ -144,11 +153,11 @@ struct Token * lexer_next_token(struct Lexer * lexer) {
 			case '"': return lexer_advance_with(lexer, lexer_parse_string(lexer));
 			case '/':
 				if (lexer_peek(lexer, 1) == '/')
-					return lexer_advance_with(lexer, lexer_parse_comment(lexer));
+					return lexer_parse_comment(lexer);
 			case '+':
 			case '-':
 			case '*': return lexer_advance_current(lexer, TOKEN_OP);
-			default: printf("\n[Lexer]: Unexpected characther: %c\n", lexer->c); exit(1); break;
+			default: println("\n[Lexer]: Unexpected characther: {c} == {u}", lexer->c, lexer->c); exit(1);
 		}
 
 	}

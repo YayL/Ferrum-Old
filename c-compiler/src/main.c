@@ -2,10 +2,10 @@
 #include "iron.h"
 
 void _help(char *_arg1) {
-	printf("\nUsage: %s <subcommand> [args]\n", _arg1);
-	printf("Available subcommands:\n");
-	printf("\tcom\tCompile a program to executable\n");
-	printf("\tsim\tSimulate a program\n");
+	println("\nUsage: {s} <subcommand> [args]", _arg1);
+	println("Available subcommands:");
+	println("\tcom\tCompile a program to executable");
+	println("\tsim\tSimulate a program");
 }
 
 int _callCommand(int count, char **arguments) {
@@ -13,16 +13,16 @@ int _callCommand(int count, char **arguments) {
 	if(!strncmp(arguments[1], "com", 3) || !strncmp(arguments[1], "c", 1)) {
 		if(count < 3) {
 			_help(arguments[0]);
-			printf("ERROR: Missing filename\n");
+			println("ERROR: Missing filename");
 			exit(1);
 		}
 		iron_compile_file(arguments[2]);
-		printf("\n");
+		print("\n");
 	} else if(!strncmp(arguments[1], "sim", 3) || !strncmp(arguments[1], "s", 1)) {
-		printf("Simulating program...\n");
+		println("Simulating program...");
 	} else {
 		_help(arguments[0]);
-		printf("ERROR: Subcommand not found\n");
+		println("ERROR: Subcommand not found");
 		return 1;
 	}
 
@@ -34,7 +34,7 @@ int main(int count, char **arguments) {
 
 	if(count < 2) {
 		_help(arguments[0]);
-		printf("ERROR: Subcommand not provided\n");
+		println("ERROR: Subcommand not provided");
 		return 1;
 	} 
 	

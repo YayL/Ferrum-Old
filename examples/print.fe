@@ -1,7 +1,14 @@
 main : int (argc: int, argv: string[]) => {
-	print(argv[0]);
-	print(argv[1]);
+	a : int = 2;
+	put("Argc:");
 	show(argc);
-	show(argc);
-	return argc; // optional
+	other(a, argc);
+	return 0; // optional
+}
+
+other : int (a : int, b : int) => {
+	put("a:");
+	show(a);
+	put("b:");
+	show(b);
 }

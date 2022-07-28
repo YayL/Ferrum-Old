@@ -38,14 +38,12 @@ const char* token_type_to_str(int type) {
 	return "UNDEFINED";
 }
 
-char* token_to_str(struct Token * token) {
+void print_token(const char * template, struct Token * token) {
 	const char* type_str = token_type_to_str(token->type);
-	const char* template = "<type='%s', code=%d, value='%p'>";
-	const size_t size = strlen(type_str) + strlen(template) + 10;
+	const char* token_template = "<type='{s}', code='{u}', value='{s}'>";
+	
+	char * src = format(template, token_template);
 
-	char * str = malloc(size);
-	snprintf(str, size, template, type_str, token->type, token->value);
-	str[size - 1] = 0;
-
-	return str; 
+	print(src, type_str, token->type, token->value);
+	free(src);
 } 

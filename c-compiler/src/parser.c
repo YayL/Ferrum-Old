@@ -28,14 +28,16 @@ unsigned int is_statement(char * name) {
 struct Token * parser_eat(struct Parser * parser, int type) {
 
 	if(parser->token->type != type) {
-		printf("[Parser]: Unexpected token: '%s', expecting: '%s'\n", token_to_str(parser->token), token_type_to_str(type));
+		print_token("[Parser]: Unexpected token: {s}, expecting: ", parser->token);
+		println("'{s}'", token_type_to_str(type));
 		exit(1);
 	}
 
 	parser->_prev = parser->token;
 	parser->token = lexer_next_token(parser->lexer);
 	#ifdef PARSER_DEBUG
-		printf("Debug [Parser]: %s, %s\n", token_to_str(parser->_prev), token_to_str(parser->token));
+		print_token("Debug [Parser]: {s}, ", parser->_prev);
+		print_token("{s}\n", parser->token);
 	#endif
 	return parser->token;
 
@@ -54,11 +56,11 @@ struct Ast * parser_parse_id(struct Parser * parser) {
 	ast->name = parser->_prev->value;
 
 	#ifdef AST_DEBUG
-		printf("Debug: [AST] %s\n", ast->name);
+		println("Debug: [AST] {s}", ast->name);
 	#endif
 
 	if (is_statement(ast->name)) {
-
+		
 		ast->name = parser->_prev->value;
 		ast->type = AST_STATEMENT;
 		ast->value = parser_parse_expr(parser);
@@ -71,25 +73,24 @@ struct Ast * parser_parse_id(struct Parser * parser) {
 		ast->data_type = typename_to_int(parser->token->value);
 
 		#ifdef PARSER_DEBUG
-			printf("Debug: [Parser] (ID: %s == %d | Type : %s == %d)\n", ast->name, ast->type, parser->token->value, ast->data_type);
+			println("Debug: [Parser] (ID: {s} == {i} | Type : {s} == {i})", ast->name, ast->type, parser->token->value, ast->data_type);
 		#endif
 		parser_eat(parser, TOKEN_ID);
 
 		if(parser->token->type == TOKEN_LBRACKET){
 			parser_eat(parser, TOKEN_LBRACKET);
 			#ifdef PARSER_DEBUG
-				printf("\t\t%s\n", token_to_str(parser->token->value));
+				print_token("\t\t{s}\n", parser->token);
 			#endif
 			ast->type = AST_ARRAY;
 			parser_eat(parser, TOKEN_RBRACKET);
 
 		} else if (parser->token->type == TOKEN_EQUALS) {
 			parser_eat(parser, TOKEN_EQUALS);
-			ast->type = AST_ASSIGNMENT;
-			ast->name = parser->_prev->value;
+			ast->type = AST_DECLARE;
 
 			#ifdef PARSER_DEBUG
-				printf("Debug: [AST] %s\n", ast_to_str(ast));
+				print_ast("Debug: [AST] {s}\n", ast);
 			#endif
 			
 			ast->value = parser_parse_expr(parser);
@@ -106,12 +107,16 @@ struct Ast * parser_parse_id(struct Parser * parser) {
 
 	} else if (parser->token->type == TOKEN_LPAREN) {
 		#ifdef PARSER_DEBUG
-			printf("Debug [Parser]: %s\n\t\t%s\n\n", token_to_str(parser->token), token_to_str(parser->_prev->value));
+			print_token("Debug [Parser]: {s}\n", parser->token);
+			print_token("\t\t{s}\n", parser->_prev);
 		#endif
 		char * name = ast->name;
 		ast = parser_parse_list(parser);
 		ast->type = AST_CALL;
 		ast->name = name;
+	} else if (parser->token->type == TOKEN_EQUALS) {
+		parser_eat(parser, TOKEN_EQUALS);
+		ast->type = AST_ASSIGNMENT;
 	}
 
 	return ast;
@@ -156,11 +161,8 @@ struct Ast * parser_parse_int(struct Parser * parser) {
 
 struct Ast * parser_parse_string(struct Parser * parser) {
 
-	struct Ast * ast = init_ast(AST_STRING);
-	size_t length = strlen(parser->token->value);
-	ast->name = malloc((length + 1) * sizeof(char));
-	strcpy(ast->name, parser->token->value);
-	ast->name[length - 1] = 0;
+	struct Ast * ast = init_ast(AST_STRING);	
+	ast->name = format("{s}", parser->token->value);
 
 	parser_eat(parser, TOKEN_STRING);
 	return ast;
@@ -173,7 +175,9 @@ struct Ast * parser_parse_expr(struct Parser * parser) {
 		case TOKEN_LPAREN: return parser_parse_list(parser);
 		case TOKEN_STRING: return parser_parse_string(parser);
 		case TOKEN_INT: return parser_parse_int(parser);
-		default: printf("[Parser]: Unexpected token in expression: '%s'\n", token_to_str(parser->token)); exit(1);
+		default: 
+			print_token("[Parser]: Unexpected token in expression: '{s}'\n", parser->token);
+			exit(1);
 	}
 
 }
@@ -184,7 +188,8 @@ struct Ast * parser_parse_scope(struct Parser * parser) {
 
 	struct Ast * scope = init_ast(AST_COMPOUND);
 	while(parser->token->type != TOKEN_RBRACE) {
-		list_push(scope->nodes, parser_parse_expr(parser));
+		struct Ast * curr = parser_parse_expr(parser);
+		list_push(scope->nodes, curr);
 		parser_eat(parser, TOKEN_SEMI);
 	}
 

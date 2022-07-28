@@ -29,4 +29,4 @@ struct Token {
 
 struct Token * init_token(char *, int);
 const char* token_type_to_str(int);
-char* token_to_str(struct Token *);
+void print_token(const char *, struct Token *);

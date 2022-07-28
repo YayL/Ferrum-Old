@@ -2,7 +2,7 @@
 
 #include "string.h"
 
-int typename_to_int(const char* name) {
+int typename_to_int(const char* name){
 
 	int ret = 0;
 	size_t len = strlen(name);

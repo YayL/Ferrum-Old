@@ -39,9 +39,9 @@ void list_push(struct List * list, void* item) {
 	list->items[list->size - 1] = item;
 }
 
-void* list_pop(struct List * list) {
+void list_pop(struct List * list) {
 	if(!list->size) 
-		return NULL;
+		return;
 
 	list->items[list->size] = NULL;
 	free(list->items[list->size]);
@@ -50,7 +50,7 @@ void* list_pop(struct List * list) {
 
 void* list_at(struct List * list, int index) {
 
-	if(0 <= index && index < list->size);
+	if(0 <= index && index < list->size)
 		return list->items[index];
 
 	return NULL;
@@ -59,9 +59,9 @@ void* list_at(struct List * list, int index) {
 
 void print_list(struct List * list) {
 
-	printf("<size=%d, capacity=%d, item_size=%d>\n", list->size, list->capacity, list->item_size);
+	println("<size={u}, capacity={u}, item_size={u}>", list->size, list->capacity, list->item_size);
 	for(size_t i = 0; i < list->size; ++i) {
-		printf("\t%s\n", ast_to_str(list->items[i]));
+		print_ast("\t{s}\n", list->items[i]);
 	}
 
 }

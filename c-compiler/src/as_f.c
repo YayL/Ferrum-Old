@@ -2,8 +2,17 @@
 
 #include "common.h"
 
+/* -- Stack Frame --
+ * ...
+ *	[rbp+16]:	first function argument
+ *	[rbp+8]:	return address
+ *	[rbp+0]:	previous stack frame base pointer
+ *	[rbp-8]:	first local variable
+ * ...
+ */
+
 struct Ast * lookup(struct List * list, const char * name) {
-	for(size_t i = 0; i < list->size; ++i) {
+	for(size_t i = 1; i < list->size; ++i) {
 		struct Ast * ret = list->items[i];
 		if(strcmp(ret->name, name) == 0) {
 			return ret;
@@ -14,77 +23,72 @@ struct Ast * lookup(struct List * list, const char * name) {
 
 char* as_f_compound(struct Ast * ast, struct List * list) {
 
-	size_t length = 1;
-	char* value = calloc(length, sizeof(char));
+	char * value = 0, * declerations = 0;
 
 	for(int i = 0; i < ast->nodes->size; ++i) {
 
 		struct Ast * child_ast = (struct Ast *) list_at(ast->nodes, i);
 		#ifdef AS_F_DEBUG
-			printf("\t%s\n", ast_to_str(child_ast));
+			print_ast("\t{s}\n", child_ast);
 		#endif
-		char* next_value = as_f(child_ast, list);
-
-		length += strlen(next_value);
-		
-		value = realloc(value, length * sizeof(char));
-		
-		strcat(value, next_value);
-		value[length - 1] = 0;
+		if (child_ast->type ==  AST_DECLARE)
+			declerations = format("{2s}", declerations, as_f(child_ast, list));
+		else
+			value = format("{2s}", value, as_f(child_ast, list));
 	}
+	
+	value = format("{2s}", declerations, value);
+	// print("{s}", value);
 
 	return value;
 }
 
 char* as_f_function(struct Ast * ast, struct List * list) {
 
-	const char * template =  "\nglobal %s\n"
-								"%s:\n"
-								"push rbp\n"
-								"mov rbp, rsp\n";
+	const char * template =	"\nglobal {s}\n"	
+							"{s}:\n"
+							"push rbp\n"
+							"mov rbp, rsp\n";
 
-	size_t length = strlen(template) + (2 * strlen(ast->name)) + 1;
-	char * src = malloc(length * sizeof(char));
-
-	snprintf(src, length, template, ast->name, ast->name);
-	src[length - 1] = 0;
+	char * src = format(template, ast->name, ast->name);
 
 	struct Ast * ast_val = ast->value;
 	
 	#ifdef AS_F_DEBUG
-		printf("Debug [Assembly Frontend]: Number of Arguments for function: %s(%d)\n", ast->name, ast_val->nodes->size);
+		print("Debug [Assembly Frontend]: Number of Arguments for function: {s}({i})\n", ast->name, ast_val->nodes->size);
 	#endif
+	struct List * child_list = init_list(sizeof(struct Ast));
 
-	const size_t size = ast_val->nodes->size; 
+	struct Ast * function = init_ast(AST_VARIABLE);
+	function->int_value = ast_val->nodes->size;
+	function->name = ast->name;
+	list_push(child_list, function);
 
-	for (size_t i = 0; i < size; ++i) {
+
+	for (size_t i = 0; i < ast_val->nodes->size; ++i) {
 		struct Ast * variable = init_ast(AST_VARIABLE);
 
 		variable->name = ((struct Ast *)ast_val->nodes->items[i])->name;
-		variable->int_value = (i + 2) << 3;
+		variable->int_value = ((i + 2) << 3);
 
-		list_push(list, variable);
+		list_push(child_list, variable);
 	}
 
-	char * ast_val_val = as_f(ast_val->value, list);
+	char * ast_val_val = as_f(ast_val->value, child_list);
 	
-	length += strlen(ast_val_val);
-	src = realloc(src, length * sizeof(char));
-	strcat(src, ast_val_val);
-	src[length - 1] = 0;
+	const char * ret_template = "add rsp, {u}\n"
+								"pop rbp\n"
+								"ret\n";
+	char * ret_buf = format(ret_template, ((child_list->size - function->int_value - 1) << 3));
+	
+	char * buf = format("{3s}", src, ast_val_val, ret_buf);
 
-
-	return src;
-
+	return buf;
 }
 
 char* as_f_assignment(struct Ast * ast, struct List * list) {
 	
-	const char* template = "mov eax, 128\n";
-	char* src = calloc(strlen(template) + 1, sizeof(char));
-	strcpy(src, template);
-
-	return src;
+	return "";
 }
 
 char* as_f_variable(struct Ast * ast, struct List * list) {
@@ -92,27 +96,33 @@ char* as_f_variable(struct Ast * ast, struct List * list) {
 	struct Ast * variable = lookup(list, ast->name);
 
 	if (!variable) {
-		printf("Error: Variable `%s` has not been declared in this scope\n", ast->name);
+		println("Error: Variable `{s}` has not been declared in this scope", ast->name);
 		exit(1);
 	}
 
-	const char * template = "mov rdi, [rsp+%d]\n";
-	const size_t length = strlen(template) + (variable->int_value / 10);
-	char * src = malloc(length * sizeof(char));
+	const char * template = "mov rdi, [rbp{Si}]\n"
+							"push rdi\n";
 
-	snprintf(src, length, template, variable->int_value);
-	src[length - 1] = 0;
+	return format(template, variable->int_value);
+}
 
-	return src;
+char * as_f_declare(struct Ast * ast, struct List * list) {
+	const char * template = "{s}"
+							"push rax\n";
+
+	struct Ast * variable = init_ast(AST_VARIABLE),*info=list_at(list, 0);
+	variable->name = ast->name;
+	variable->int_value = -((list->size - info->int_value) << 3);
+
+	list_push(list, variable);
+	
+	return format(template, as_f_assignment(ast, list));
 
 }
 
 char * as_f_statement(struct Ast * ast, struct List * list) {
 	if (strncmp(ast->name, "return", 5) == 0) {
-		const char * template = "%s" // mov rdi, %s
-								"mov rsp, rbp\n"
-								"pop rbp\n"
-								"ret\n";
+		const char * template = "{s}"; // mov rdi, %s
 
 
 		struct Ast * ret_ast = (struct Ast * ) 
@@ -120,100 +130,84 @@ char * as_f_statement(struct Ast * ast, struct List * list) {
 										? ast->value
 										: (void* )0;
 
-		// printf("ret_ast: %s\n", ast_to_str(ret_ast));
-
-		char * ret_val = "mov rdi, 0";
+		char * ret_val = format("mov rdi, {i}\n", ret_ast->int_value);
 
 		if (ret_ast) {
-			switch(ret_ast->type) {
+			switch(ret_ast->type) { 
 				case AST_VARIABLE: ret_val = as_f_variable(ast->value, list); break;
 				case AST_ACCESS: ret_val = as_f_access(ast->value, list); break;
 			}
 		}
 
-		size_t length = strlen(template) + strlen(ret_val);
-		char * src = malloc(length * sizeof(char));
-
-		snprintf(src, length, template, ret_val);
-		src[length - 1] = 0;
+		char * src = format(template, ret_val);
 
 		#ifdef AS_F_DEBUG
-			printf("\nDebug [Assembly Frontend]:\n\t%s\n\t%s\n", ast_to_str(ast), ast_to_str(ast->value));
+			print_ast("\nDebug [Assembly Frontend]:\n\t{s}\n", ast);
+			print_ast("\t{s}\n", ast->value);
 		#endif
 
 		return src;
 	}
 
-	return "as_f_statement\n";
+	return "; as_f_statement\n";
 
 }
 
 char* as_f_call(struct Ast * ast, struct List * list) {
-	const char * template = "%s"
-							"call %s\n";
+	const char * template = "{s}"
+							"call {s}\n"
+							"add rsp, {u}\n";
 
-	size_t size = 1, length;
-	char * argument_src = calloc(size, sizeof(char));
+	char * argument_src = 0;
+	unsigned int len = ast->nodes->size;
 
-	for (size_t i = 0; i < ast->nodes->size; ++i) {
+	for (size_t i = len; i > 0; --i) {
+		char * curr_argument_src = as_f(ast->nodes->items[i - 1], list);
 
-		char * curr_argument_src = as_f(ast->nodes->items[i], list);
-
-		length = strlen(curr_argument_src);
-		size += length;
-
-		argument_src = realloc(argument_src, size);
-		strncat(argument_src, curr_argument_src, length);
-		argument_src[size - 1] = 0;
+		argument_src = format("{2s}", argument_src, curr_argument_src);
+		free(curr_argument_src);
 	}
 
-	size += strlen(template) + strlen(ast->name);
-	char * src = malloc(size * sizeof(char));
-
-	snprintf(src, size, template, argument_src, ast->name);
-	src[size - 1] = 0;
-
 	#ifdef AS_F_DEBUG
-		printf("\nDebug [Assembly Frontend]:\n\t%s\n", ast_to_str(ast));
+		print_ast("\nDebug [Assembly Frontend]: 11111\n\t{s}\n", ast);
 	#endif
 	
-	return src;
+	return format(template, argument_src, ast->name, ast->int_value << 3);
 
 }
 
 char* as_f_value(struct Ast * ast, struct List * list) {
 
-	return "as_f_value\n";
+	return "; as_f_value\n";
 
 }
 
 char * as_f_array(struct Ast * ast, struct List * list) {
-	return "as_f_array";
+	return "; as_f_array\n";
 }
 
 char * as_f_access(struct Ast * ast, struct List * list) {
-	
-	char * src = calloc(1, sizeof(char));
+	const char * template = "mov rdi, [rbp+{i}]\n";
 
-	const int index = ast->int_value;
 	struct Ast * variable = lookup(list, ast->name);
 
 	if (!variable) {
-		printf("Error: Variable `%s` has not been declared in this scope\n", ast->name);
+		println("Error: Variable `{s}` has not been declared in this scope", ast->name);
 		exit(1);
 	}
 
 	const int id = variable->int_value + (ast->value->int_value << 3);
 
-	const char * template = "mov rdi, [rsp+%d]\n";
-	const size_t length = strlen(template) + (id / 10);
-	src = malloc(length * sizeof(char));
+	return format(template, id);
 
-	snprintf(src, length, template, id);
-	src[length - 1] = 0;
+}
 
-	return src;
+char * as_f_const_string(struct Ast * ast, struct List * list) {
 
+	const char * template = "push {s}\n"
+							"push {s}_len\n";
+	
+	return format(template, ast->name, ast->name);
 }
 
 char* as_f(struct Ast * ast, struct List * list) {
@@ -221,13 +215,14 @@ char* as_f(struct Ast * ast, struct List * list) {
 	char * next_value = "";
 
 	#ifdef AS_F_DEBUG
-		printf("Debug [Assembly Frontend]: %s\n", ast_to_str(ast));
+		print_ast("Debug [Assembly Frontend]: {s}\n", ast);
 	#endif
 
 	switch(ast->type) {
 		case AST_COMPOUND: next_value = as_f_compound(ast, list); break;
 		case AST_FUNCTION: next_value = as_f_function(ast, list); break;
 		case AST_ASSIGNMENT: next_value = as_f_assignment(ast, list); break;
+		case AST_DECLARE: next_value = as_f_declare(ast, list); break;
 		case AST_VARIABLE: next_value = as_f_variable(ast, list); break;
 		case AST_STATEMENT: next_value = as_f_statement(ast, list); break;
 		case AST_CALL: next_value = as_f_call(ast, list); break;
@@ -235,40 +230,33 @@ char* as_f(struct Ast * ast, struct List * list) {
 		case AST_ARRAY: next_value = as_f_array(ast, list); break;
 		case AST_ACCESS: next_value = as_f_access(ast, list); break;
 		case AST_NOOP: next_value = ast->str_value; break;
-		default: printf("[Assembler Frontend]: Unknown AST type '%d'\n", ast->type); exit(1);
+		case AST_STRING: next_value = as_f_const_string(ast, list); break;
+		default: println("[Assembler Frontend]: Unknown AST type '{i}'", ast->type); exit(1);
 	}
 
-	const size_t size = strlen(next_value) + 1;
-	char* value = malloc(size);
-	strncpy(value, next_value, size);
-	value[size - 1] = 0;
-
-	return value;
+	return next_value;
 }
 
-char * as_f_root(struct Ast * root, struct List * list) {
+char * as_f_root(struct Ast * root, struct Visitor * visitor, struct List * list) {
 
-	const char * start = 	"BITS 64\n"
+	const char * template = 	"BITS 64\n"
 							"section .data\n"
 							"newline db 0xA, 0xD\n"
-							"newline_len equ $-newline\n\n"
+							"newline_len equ $-newline\n"
+							"{s}\n"
 							"section .text\n"
 							"global _start\n"
 							"_start:\n"
 							"call main\n"
+							"mov rbp, 0\n"
+							"add rsp, 0x10\n"
 							"mov eax, 60\n"
 							"syscall\n"
-							"\n%s";
+							"\n"
+							"{s}\n"
+							"{s}\n";
 
 	char * next_value = as_f(root, list);
-	const size_t next_size = strlen(next_value);
 
-	size_t size = strlen(start) + strlen(root->str_value);
-	char * value = malloc(size + next_size + 1);
-	// strncpy(value, start, size);
-	snprintf(value, size, start, root->str_value);
-	strncat(value, next_value, next_size);
-	value[size + next_size] = 0;
-
-	return value;
+	return format(template, visitor->section_data, visitor->builtins, next_value);
 }

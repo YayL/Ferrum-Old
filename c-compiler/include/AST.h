@@ -9,7 +9,7 @@ struct Ast {
 		AST_COMPOUND,
 		AST_FUNCTION,
 		AST_ASSIGNMENT,
-		AST_DEF_TYPE,
+		AST_DECLARE,
 		AST_VARIABLE,
 		AST_ARRAY,
 		AST_INT,
@@ -34,4 +34,4 @@ struct Ast {
 struct Ast * init_ast(int);
 void free_ast(struct Ast *);
 const char * ast_type_to_str(int);
-char * ast_to_str(struct Ast *);
+void print_ast(const char * template, struct Ast *);

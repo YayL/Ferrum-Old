@@ -7,8 +7,8 @@ struct Lexer {
 	
 	char *src;
 	size_t size;
-	char c; // curr char
-	unsigned int i; // position in src
+	char c; 
+	unsigned int i;
 
 };
 

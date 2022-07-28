@@ -10,16 +10,15 @@ char* read_file(const char* filename) {
 
 	fp = fopen(filename, "rb");
 	if (fp == NULL) {
-		printf("Cannot open file: '%s'\n", filename);
+		println("Cannot open file: '{s}'", filename);
 		exit(1);
 	}
 
-	char* buffer = calloc(1, sizeof(char));
-	buffer[0] = '\0';
+	char* buffer = malloc(sizeof(char));
+	buffer[0] = 0;
 
 	while (getline(&line, &len, fp) != -1) {
-		buffer = realloc(buffer, (strlen(buffer) + strlen(line) + 1) * sizeof(char));
-		strcat(buffer, line);
+		buffer = format("{2s}", buffer, line);
 	}
 
 	fclose(fp);
@@ -34,12 +33,12 @@ void write_file(const char * filename, char * write_buffer) {
 	
 	fp = fopen(filename, "wb");
 	if (fp == NULL) {
-		printf("Error: Unable to open file: '%s'\n", filename);
+		println("Error: Unable to open file: '{s}'", filename);
 		exit(1);
 	}
 
 	if (!fputs(write_buffer, fp)) {
-		printf("Error: Unable to write buffer to file: '%s'", filename);
+		println("Error: Unable to write buffer to file: '{s}'", filename);
 		exit(1);
 	}
 	fclose(fp);

@@ -41,7 +41,7 @@ void list_push(struct List *, void *);
  * @return void* 
  */
 
-void* list_pop(struct List *);
+void list_pop(struct List *);
 
 /**
  * @brief Return the item at a certain index in the list
