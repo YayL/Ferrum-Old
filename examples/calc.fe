@@ -4,9 +4,16 @@ main : int () => {
 	b : int = 3;
 	c : int = 1;
 
-	print(a);
-	// print(a - b);
-	// print(a * b);
-	// print(a / b);
-	// print(a + b * c); // print(a + (b * c))
+	a = a & b;
+	b = 4;
+	b = square(square(b));
+	c = square(3) % 4;
+	
+	show(a);
+	show(b);
+	show(c);
+}
+
+square: int (num: int) => {
+	return num * num;
 }

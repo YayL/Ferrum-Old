@@ -2,13 +2,22 @@
 
 #include "common.h"
 
-/* -- Stack Frame --
- * ...
- *	[rbp+16]:	first function argument
- *	[rbp+8]:	return address
- *	[rbp+0]:	previous stack frame base pointer
- *	[rbp-8]:	first local variable
- * ...
+/* 
+ ---------------------------------------------------------------
+ |    Stack Frame    |
+ ---------------------------------------------------------------
+ | [rbp+...]:	R8
+ | ...
+ |	[rbp+16]:	first function argument
+ |	[rbp+8]:	return address
+ |	[rbp+0]:	previous stack frame base pointer
+ |	[rbp-8]:	first local variable
+ | ...
+ ---------------------------------------------------------------
+ |	   Registers     |
+ ---------------------------------------------------------------
+ |	R8:		Value to set rsp to after returning from a function
+ ---------------------------------------------------------------
  */
 
 struct Ast * lookup(struct List * list, const char * name) {
@@ -76,19 +85,29 @@ char* as_f_function(struct Ast * ast, struct List * list) {
 
 	char * ast_val_val = as_f(ast_val->value, child_list);
 	
-	const char * ret_template = "add rsp, {u}\n"
+	const char * ret_template = "mov rsp, rbp\n"
 								"pop rbp\n"
 								"ret\n";
-	char * ret_buf = format(ret_template, ((child_list->size - function->int_value - 1) << 3));
 	
-	char * buf = format("{3s}", src, ast_val_val, ret_buf);
+	char * buf = format("{3s}", src, ast_val_val, ret_template);
 
 	return buf;
 }
 
 char* as_f_assignment(struct Ast * ast, struct List * list) {
 	
-	return "";
+	const char * template = "{s}"
+							"pop rax\n"
+							"mov [rbp{Si}], rax\n";	
+
+	struct Ast * variable = lookup(list, ast->name);
+
+	if (!variable) {
+		println("[Compiler] Error: Variable `{s}` has not been declared in this scope", ast->name);
+		exit(1);
+	}
+
+	return format(template, as_f(ast->value, list), variable->int_value);
 }
 
 char* as_f_variable(struct Ast * ast, struct List * list) {
@@ -96,19 +115,19 @@ char* as_f_variable(struct Ast * ast, struct List * list) {
 	struct Ast * variable = lookup(list, ast->name);
 
 	if (!variable) {
-		println("Error: Variable `{s}` has not been declared in this scope", ast->name);
+		println("[Compiler] Error: Variable `{s}` has not been declared in this scope", ast->name);
 		exit(1);
 	}
 
-	const char * template = "mov rdi, [rbp{Si}]\n"
-							"push rdi\n";
+	const char * template = "mov rax, [rbp{Si}]\n"
+							"push rax\n";
 
 	return format(template, variable->int_value);
 }
 
 char * as_f_declare(struct Ast * ast, struct List * list) {
-	const char * template = "{s}"
-							"push rax\n";
+	const char * template = "push 0\n"
+							"{s}";
 
 	struct Ast * variable = init_ast(AST_VARIABLE),*info=list_at(list, 0);
 	variable->name = ast->name;
@@ -117,12 +136,12 @@ char * as_f_declare(struct Ast * ast, struct List * list) {
 	list_push(list, variable);
 	
 	return format(template, as_f_assignment(ast, list));
-
 }
 
 char * as_f_statement(struct Ast * ast, struct List * list) {
 	if (strncmp(ast->name, "return", 5) == 0) {
-		const char * template = "{s}"; // mov rdi, %s
+		const char * template = "{s}"
+								"pop rax\n"; // mov rdi, %s
 
 
 		struct Ast * ret_ast = (struct Ast * ) 
@@ -130,12 +149,14 @@ char * as_f_statement(struct Ast * ast, struct List * list) {
 										? ast->value
 										: (void* )0;
 
-		char * ret_val = format("mov rdi, {i}\n", ret_ast->int_value);
+		char * ret_val = format("push {i}\n", ret_ast->int_value);
 
 		if (ret_ast) {
+			print_ast("AST: {s}\n", ret_ast);
 			switch(ret_ast->type) { 
 				case AST_VARIABLE: ret_val = as_f_variable(ast->value, list); break;
 				case AST_ACCESS: ret_val = as_f_access(ast->value, list); break;
+				case AST_EXPR: ret_val = as_f_expr(ast->value, list); break;
 			}
 		}
 
@@ -154,9 +175,13 @@ char * as_f_statement(struct Ast * ast, struct List * list) {
 }
 
 char* as_f_call(struct Ast * ast, struct List * list) {
-	const char * template = "{s}"
+	const char * template =	"push r8\n"
+							"mov r8, rsp\n"
+							"{s}"
 							"call {s}\n"
-							"add rsp, {u}\n";
+							"mov rsp, r8\n"
+							"pop r8\n"
+							"{s}\n";
 
 	char * argument_src = 0;
 	unsigned int len = ast->nodes->size;
@@ -172,7 +197,42 @@ char* as_f_call(struct Ast * ast, struct List * list) {
 		print_ast("\nDebug [Assembly Frontend]: 11111\n\t{s}\n", ast);
 	#endif
 	
-	return format(template, argument_src, ast->name, ast->int_value << 3);
+	return format(template, argument_src, ast->name, ast->push ? "push rax" : "");
+
+}
+
+char * as_f_expr(struct Ast * ast, struct List * list) {
+	
+	print_ast("expr: {s}\n", ast);
+	print_list(ast->nodes);
+
+	char * left = as_f(list_at(ast->nodes, 0), list);
+	char * right = as_f(list_at(ast->nodes, 2), list);
+	char *	operation, 
+			* template =	"pop {s}\n"
+							"pop {s}\n"
+							"{s}\n"
+							"push {s}\n";
+	
+
+	struct Ast * op_ast = list_at(ast->nodes, 1);
+	
+	char op = op_ast->name[0];
+	switch (op) {
+		case '+': operation = format(template, "rbx", "rax", "add rax, rbx", "rax"); break;
+		case '-': operation = format(template, "rbx", "rax", "sub rax, rbx", "rax"); break;
+		case '^': operation = format(template, "rbx", "rax", "xor rax, rbx", "rax"); break;
+		case '|': operation = format(template, "rbx", "rax", "or rax, rbx", "rax"); break;
+		case '&': operation = format(template, "rbx", "rax", "and rax, rbx", "rax"); break;
+		case '*': operation = format(template, "rbx", "rax", "mul rbx", "rax"); break;
+		case '/': operation = format(template, "rax", "rbx", "div rbx", "rax"); break;
+		case '%': operation = format(template, "rax", "rbx", "div rbx", "rdx"); break;
+		default:
+			println("[Compiler] Error: Operator '{c}' is not supported yet!", op);
+			exit(1);
+	}
+
+	return format("{3s}", right, left, operation);
 
 }
 
@@ -187,7 +247,7 @@ char * as_f_array(struct Ast * ast, struct List * list) {
 }
 
 char * as_f_access(struct Ast * ast, struct List * list) {
-	const char * template = "mov rdi, [rbp+{i}]\n";
+	const char * template = "mov rax, [rbp{Si}]\n";
 
 	struct Ast * variable = lookup(list, ast->name);
 
@@ -208,6 +268,10 @@ char * as_f_const_string(struct Ast * ast, struct List * list) {
 							"push {s}_len\n";
 	
 	return format(template, ast->name, ast->name);
+}
+
+char * as_f_int(struct Ast * ast, struct List * list) {
+	return format("mov rax, {i}\n{s}", ast->int_value, ast->push ? "push rax\n" : "\n");
 }
 
 char* as_f(struct Ast * ast, struct List * list) {
@@ -231,6 +295,8 @@ char* as_f(struct Ast * ast, struct List * list) {
 		case AST_ACCESS: next_value = as_f_access(ast, list); break;
 		case AST_NOOP: next_value = ast->str_value; break;
 		case AST_STRING: next_value = as_f_const_string(ast, list); break;
+		case AST_INT: next_value = as_f_int(ast, list); break;
+		case AST_EXPR: next_value = as_f_expr(ast, list); break;
 		default: println("[Assembler Frontend]: Unknown AST type '{i}'", ast->type); exit(1);
 	}
 
@@ -248,8 +314,7 @@ char * as_f_root(struct Ast * root, struct Visitor * visitor, struct List * list
 							"global _start\n"
 							"_start:\n"
 							"call main\n"
-							"mov rbp, 0\n"
-							"add rsp, 0x10\n"
+							"mov rdi, rax\n"
 							"mov eax, 60\n"
 							"syscall\n"
 							"\n"

@@ -18,6 +18,8 @@ struct Ast {
 		AST_STATEMENT,
 		AST_VALUE,
 		AST_CALL,
+		AST_BINOP,
+		AST_EXPR,
 		AST_NOOP,
 	} type;
 
@@ -26,6 +28,7 @@ struct Ast {
 	struct Ast * value;
 	int data_type;
 	int int_value;
+	char push;
 	char * str_value;
 	struct Ast * (*f_ptr)();
 

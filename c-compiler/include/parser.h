@@ -22,6 +22,7 @@ struct Ast * parser_parse_list(struct Parser *);
 struct Ast * parser_parse_int(struct Parser *);
 struct Ast * parser_parse_string(struct Parser *);
 
+struct Ast * parser_parse_eval(struct Parser *);	
 struct Ast * parser_parse_expr(struct Parser *);
 
 struct Ast * parser_parse_scope(struct Parser *);

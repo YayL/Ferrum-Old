@@ -6,7 +6,7 @@
 struct Ast * visitor_lookup(struct List * list, const char * name) {
 	for(size_t i = 0; i < list->size; ++i) {
 		struct Ast * child_ast = list->items[i];
-		if (child_ast->type != AST_VARIABLE || !child_ast->name)
+		if (!child_ast->name)
 			continue;
 
 		if(strcmp(child_ast->name, name) == 0) 
@@ -73,7 +73,7 @@ struct Ast * visitor_visit_assignment(struct Visitor * visitor, struct Ast * nod
 	variable->value = visitor_visit(visitor, node->value, list);
 	
 	if (!visitor_lookup(list, variable->name)) {
-		print("[Runtime] Error: Variable '{s}' is not defined in scope.", variable->name);
+		println("[Runtime] Error: Variable '{s}' is not defined in scope.", variable->name);
 		exit(1);
 	}
 
@@ -206,6 +206,8 @@ struct Ast * visitor_visit(struct Visitor * visitor, struct Ast * node, struct L
 		case AST_ARRAY: return visitor_visit_array(visitor, node, list);
 		case AST_ACCESS: return visitor_visit_access(visitor, node, list);
 		case AST_STRING: return visitor_visit_string(visitor, node, list);
+		case AST_EXPR: return node; //visitor_visit_eval(visitor, node, list);
+		case AST_BINOP: return node;
 		case AST_INT: return node;
 		default: println("[Visitor]: Unable to handle AST type '{u}'", node->type); exit(1);
 	}

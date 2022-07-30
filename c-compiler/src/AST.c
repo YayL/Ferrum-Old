@@ -38,6 +38,8 @@ const char * ast_type_to_str(int type) {
 		case AST_STATEMENT: return "AST_STATEMENT";
 		case AST_VALUE: return "AST_VALUE";
 		case AST_CALL: return "AST_CALL";
+		case AST_BINOP: return "AST_BINOP";
+		case AST_EXPR: return "AST_EXPR";
 		case AST_NOOP: return "AST_NOOP";
 	}
 	return "UNDEFINED";

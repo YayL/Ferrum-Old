@@ -156,6 +156,10 @@ struct Token * lexer_next_token(struct Lexer * lexer) {
 					return lexer_parse_comment(lexer);
 			case '+':
 			case '-':
+			case '&':
+			case '|':
+			case '^':
+			case '%':
 			case '*': return lexer_advance_current(lexer, TOKEN_OP);
 			default: println("\n[Lexer]: Unexpected characther: {c} == {u}", lexer->c, lexer->c); exit(1);
 		}

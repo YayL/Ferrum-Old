@@ -117,6 +117,7 @@ struct Ast * parser_parse_id(struct Parser * parser) {
 	} else if (parser->token->type == TOKEN_EQUALS) {
 		parser_eat(parser, TOKEN_EQUALS);
 		ast->type = AST_ASSIGNMENT;
+		ast->value = parser_parse_expr(parser);
 	}
 
 	return ast;
@@ -169,18 +170,62 @@ struct Ast * parser_parse_string(struct Parser * parser) {
 }
 
 struct Ast * parser_parse_expr(struct Parser * parser) {
+	struct Ast * expr = init_ast(AST_EXPR);
+	expr->nodes = init_list(sizeof(struct Ast));
 
-	switch(parser->token->type) {
-		case TOKEN_ID: return parser_parse_id(parser);
-		case TOKEN_LPAREN: return parser_parse_list(parser);
-		case TOKEN_STRING: return parser_parse_string(parser);
-		case TOKEN_INT: return parser_parse_int(parser);
-		default: 
-			print_token("[Parser]: Unexpected token in expression: '{s}'\n", parser->token);
+	switch (parser->token->type) {
+		case TOKEN_ID: {
+						   struct Ast * val = parser_parse_id(parser);
+						   val->push = 1;
+						   list_push(expr->nodes, val); 
+						   break;
+					   }
+		case TOKEN_LPAREN: {
+							   parser_eat(parser, TOKEN_LPAREN); 
+							   list_push(expr->nodes, parser_parse_expr(parser));
+							   parser_eat(parser, TOKEN_RPAREN);
+							   break;
+						   }
+		case TOKEN_INT: {
+							struct Ast * val = parser_parse_int(parser);
+							val->push = 1;
+							list_push(expr->nodes, val); 
+							break;
+						}
+		case TOKEN_STRING: list_push(expr->nodes, parser_parse_string(parser)); break;
+		default: {
+			print_token("[Parser]: Unexpected token in expression: '{s}'\n", 
+					parser->token);
 			exit(1);
+		}
 	}
 
+	if (parser->token->type == TOKEN_OP) {
+		struct Ast * binop = init_ast(AST_BINOP);
+		binop->name = parser->token->value;
+		list_push(expr->nodes, binop);
+		parser_eat(parser, TOKEN_OP);
+		list_push(expr->nodes, parser_parse_expr(parser));
+	} else {
+		expr = list_at(expr->nodes, 0);
+	}
+
+	return expr;
 }
+
+// struct Ast * parser_parse_expr(struct Parser * parser) {
+//
+// 	switch(parser->token->type) {
+// 		case TOKEN_ID: return parser_parse_id(parser);
+// 		case TOKEN_LPAREN: return parser_parse_expr(parser);
+// 		case TOKEN_STRING: return parser_parse_string(parser);
+// 		case TOKEN_INT: return parser_parse_int(parser);
+// 		default: 
+// 			print_token("[Parser]: Unexpected token in expression: '{s}'\n", parser->token);
+// 			exit(1);
+// 	}
+//
+// }
 
 struct Ast * parser_parse_scope(struct Parser * parser) {
 

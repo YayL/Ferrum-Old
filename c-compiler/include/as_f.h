@@ -9,6 +9,7 @@ char * as_f_variable(struct Ast *, struct List *);
 char * as_f_declare(struct Ast *, struct List *);
 char * as_f_statement(struct Ast *, struct List *);
 char * as_f_call(struct Ast *, struct List *);
+char * as_f_expr(struct Ast *, struct List *);
 char * as_f_value(struct Ast *, struct List *);
 char * as_f_array(struct Ast *, struct List *);
 char * as_f_access(struct Ast *, struct List *);
