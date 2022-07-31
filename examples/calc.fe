@@ -1,7 +1,10 @@
 main : int () => {
-
 	
-
+	var: int = 0; num: int = 0;
+	var = var + 2;
+	num = var;
+	
+	show(num);
 }
 
 sum: int (a: int, b: int, c: int, d: int, e: int, f:int, g: int) => {

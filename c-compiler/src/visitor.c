@@ -82,10 +82,16 @@ struct Ast * visitor_visit_assignment(struct Visitor * visitor, struct Ast * nod
 }
 
 struct Ast * visitor_visit_declare(struct Visitor * visitor, struct Ast * node, struct List * list) {
+	
+	if (visitor_lookup(list, node->name)) {
+		println("[Runtime] Error: '{s}' has already been declared in this scope!", node->name);
+		exit(1);
+	}
 
 	struct Ast * variable = init_ast(AST_DECLARE);
 	variable->name = node->name;
-	variable->value = visitor_visit(visitor, node->value, list);
+	if (node->value) 
+		variable->value = visitor_visit(visitor, node->value, list);
 	variable->data_type = node->data_type;
 	list_push(list, variable);
 

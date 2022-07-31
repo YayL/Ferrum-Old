@@ -35,10 +35,10 @@ const char * ast_type_to_str(int type) {
 		case AST_STRING: return "AST_STRING";
 		case AST_ARRAY: return "AST_ARRAY";
 		case AST_ACCESS: return "AST_ACCESS";
-		case AST_STATEMENT_FOR: return "AST_STATEMENT_FOR";
-		case AST_STATEMENT_RETURN: return "AST_STATEMENT_RETURN";
-		case AST_STATEMENT_IF: return "AST_STATEMENT_IF";
-		case AST_STATEMENT_WHILE: return "AST_STATEMENT_WHILE";
+		case AST_STATEMENT_FOR: return "AST_FOR";
+		case AST_STATEMENT_RETURN: return "AST_RETURN";
+		case AST_STATEMENT_IF: return "AST_IF";
+		case AST_STATEMENT_WHILE: return "AST_WHILE";
 		case AST_VALUE: return "AST_VALUE";
 		case AST_CALL: return "AST_CALL";
 		case AST_BINOP: return "AST_BINOP";
@@ -56,7 +56,7 @@ void print_ast(const char * template, struct Ast * ast) {
 		nodes_size = ast->nodes->size;
 	}
 	
-	char * ast_str = format("<name='{s}', type='{s}', left='{b}', value='{b}', right='{b}' data_type='{i}', nodes='{lu}', int_value='{i}', f_ptr='{b}'>", ast->name,type_str,ast->left,ast->value,ast->right,ast->data_type,nodes_size,ast->int_value, ast->f_ptr);
+	char * ast_str = format("<name='{s}', type='{s}', ['{b}', '{b}', '{b}'], data_type='{i}', nodes='{lu}', int_value='{i}', f_ptr='{b}'>", ast->name,type_str,ast->left,ast->value,ast->right,ast->data_type,nodes_size,ast->int_value, ast->f_ptr);
 
 	print(template, ast_str);
 	free(ast_str);

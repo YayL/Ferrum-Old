@@ -40,10 +40,7 @@ char* as_f_compound(struct Ast * ast, struct List * list) {
 		#ifdef AS_F_DEBUG
 			print_ast("\t{s}\n", child_ast);
 		#endif
-		if (child_ast->type ==  AST_DECLARE)
-			declerations = format("{2s}", declerations, as_f(child_ast, list));
-		else
-			value = format("{2s}", value, as_f(child_ast, list));
+		value = format("{2s}", value, as_f(child_ast, list));
 	}
 	
 	value = format("{2s}", declerations, value);
@@ -54,14 +51,7 @@ char* as_f_compound(struct Ast * ast, struct List * list) {
 
 char* as_f_function(struct Ast * ast, struct List * list) {
 
-	const char * template =	"\nglobal {s}\n"	
-							"{s}:\n"
-							"push rbp\n"
-							"mov rbp, rsp\n";
-
-	char * src = format(template, ast->name, ast->name);
-
-	struct Ast * ast_val = ast->value;
+	struct Ast * ast_val = ast->value;	
 	
 	#ifdef AS_F_DEBUG
 		print("Debug [Assembly Frontend]: Number of Arguments for function: {s}({i})\n", ast->name, ast_val->nodes->size);
@@ -82,12 +72,23 @@ char* as_f_function(struct Ast * ast, struct List * list) {
 
 		list_push(child_list, variable);
 	}
-
+	
+	print_list(ast_val->value->nodes);
 	char * ast_val_val = as_f(ast_val->value, child_list);
 	
+	const char * template =	"\nglobal {s}\n"	
+							"{s}:\n"
+							"push rbp\n"
+							"mov rbp, rsp\n"
+							"sub rsp, {u}\n";
+
 	const char * ret_template = "mov rsp, rbp\n"
 								"pop rbp\n"
 								"ret\n";
+	
+
+	char * src = format(template, ast->name, ast->name, 
+						(child_list->size - ast_val->nodes->size - 1) << 3);
 	
 	char * buf = format("{3s}", src, ast_val_val, ret_template);
 
@@ -106,6 +107,8 @@ char* as_f_assignment(struct Ast * ast, struct List * list) {
 		println("[Compiler] Error: Variable `{s}` has not been declared in this scope", ast->name);
 		exit(1);
 	}
+
+	print_ast("assignment: {s}\n", ast);
 
 	return format(template, as_f(ast->value, list), variable->int_value);
 }
@@ -126,16 +129,16 @@ char* as_f_variable(struct Ast * ast, struct List * list) {
 }
 
 char * as_f_declare(struct Ast * ast, struct List * list) {
-	const char * template = "push 0\n"
-							"{s}";
+	const char * template = "{s}";
 
 	struct Ast * variable = init_ast(AST_VARIABLE),*info=list_at(list, 0);
 	variable->name = ast->name;
 	variable->int_value = -((list->size - info->int_value) << 3);
 
 	list_push(list, variable);
-	
-	return format(template, as_f_assignment(ast, list));
+	if (ast->value)
+		return format(template, as_f_assignment(ast, list));
+	return "";
 }
 
 char * as_f_return(struct Ast * ast, struct List * list) {

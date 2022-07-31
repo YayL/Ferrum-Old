@@ -124,7 +124,6 @@ struct Token * lexer_advance_with(struct Lexer * lexer, struct Token * token) {
 
 	#ifdef LEXER_DEBUG
 		println("Debug [Lexer]: {s} [{u}]", token->value, token->type);
-		println("\t\tNext: {c}", lexer_peek(lexer, 1));
 	#endif
 
 	return token;

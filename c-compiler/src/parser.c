@@ -114,19 +114,15 @@ struct Ast * parser_parse_id(struct Parser * parser) {
 			ast->type = AST_ARRAY;
 			parser_eat(parser, TOKEN_RBRACKET);
 
-		} else if (parser->token->type == TOKEN_EQUALS) {
-			parser_eat(parser, TOKEN_EQUALS);
-			ast->type = AST_DECLARE;
-
-			#ifdef PARSER_DEBUG
-				print_ast("Debug: [AST] {s}\n", ast);
-			#endif
-			
-			ast->value = parser_parse_expr(parser);
-
 		} else if (parser->token->type == TOKEN_LPAREN) {
 			ast->value = parser_parse_list(parser);
 			ast->type = AST_FUNCTION;
+		} else {
+			if (parser->token->type == TOKEN_EQUALS) {
+				parser_eat(parser, TOKEN_EQUALS);
+				ast->value = parser_parse_expr(parser);
+			}
+			ast->type = AST_DECLARE;
 		}
 	} else if (parser->token->type == TOKEN_LBRACKET) {
 		parser_eat(parser, TOKEN_LBRACKET);
