@@ -1,4 +1,4 @@
-#include "iron.h"
+#include "ferrum.h"
 
 #include <unistd.h>
 
@@ -9,7 +9,7 @@
 #include "visitor.h"
 #include "common.h"
 
-void iron_compile(char * src) {
+void ferrum_compile(char * src) {
 
 	struct Lexer * lexer = init_lexer(src);
 	struct Parser * parser = init_parser(lexer);
@@ -21,19 +21,19 @@ void iron_compile(char * src) {
 
 	char * src_code = as_f_root(visited_root, runtime, init_list(sizeof(struct Ast)));
 
-	char * new_filename = "iron.nasm";
+	char * new_filename = "ferrum.nasm";
 
-	write_file("iron.nasm", src_code);
+	write_file("ferrum.nasm", src_code);
 
-	char * output = exec("nasm -f elf64 iron.nasm -o iron.o && ld iron.o -o iron");
+	char * output = exec("nasm -f elf64 ferrum.nasm -o ferrum.o && ld ferrum.o -o ferrum");
 
 	println("{s}", output);
 }
 
-void iron_compile_file(char * filename) {
+void ferrum_compile_file(char * filename) {
 
 	char* src = read_file(filename);
-	iron_compile(src);
+	ferrum_compile(src);
 	free(src);
 
 }

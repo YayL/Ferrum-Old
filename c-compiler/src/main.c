@@ -1,5 +1,5 @@
 #include "common.h"
-#include "iron.h"
+#include "ferrum.h"
 
 void _help(char *_arg1) {
 	println("\nUsage: {s} <subcommand> [args]", _arg1);
@@ -16,7 +16,7 @@ int _callCommand(int count, char **arguments) {
 			println("ERROR: Missing filename");
 			exit(1);
 		}
-		iron_compile_file(arguments[2]);
+		ferrum_compile_file(arguments[2]);
 		print("\n");
 	} else if(!strncmp(arguments[1], "sim", 3) || !strncmp(arguments[1], "s", 1)) {
 		println("Simulating program...");
