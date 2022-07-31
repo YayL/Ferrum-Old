@@ -15,17 +15,22 @@ struct Ast {
 		AST_INT,
 		AST_STRING,
 		AST_ACCESS,
-		AST_STATEMENT,
 		AST_VALUE,
 		AST_CALL,
 		AST_BINOP,
 		AST_EXPR,
+		AST_STATEMENT_RETURN,
+		AST_STATEMENT_FOR,
+		AST_STATEMENT_IF,
+		AST_STATEMENT_WHILE,
 		AST_NOOP,
 	} type;
 
 	struct List * nodes;
 	char * name;
+	struct Ast * left;
 	struct Ast * value;
+	struct Ast * right;
 	int data_type;
 	int int_value;
 	char push;

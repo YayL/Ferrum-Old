@@ -22,11 +22,13 @@ struct Token {
 		TOKEN_INT,
 		TOKEN_STRING,
 		TOKEN_OP,
+		TOKEN_DOP,
 		TOKEN_COMMENT,
 		TOKEN_EOF,
 	} type;
+	unsigned int line, pos;
 };
 
-struct Token * init_token(char *, int);
+struct Token * init_token(char *, int, unsigned int, unsigned int);
 const char* token_type_to_str(int);
 void print_token(const char *, struct Token *);

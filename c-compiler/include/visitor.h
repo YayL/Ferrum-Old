@@ -20,7 +20,10 @@ struct Ast * visitor_visit_function(struct Visitor *, struct Ast *, struct List 
 struct Ast * visitor_visit_assignment(struct Visitor *, struct Ast *, struct List *);
 struct Ast * visitor_visit_declare(struct Visitor *, struct Ast *, struct List *);
 struct Ast * visitor_visit_variable(struct Visitor *, struct Ast *, struct List *);
-struct Ast * visitor_visit_statement(struct Visitor *, struct Ast *, struct List *);
+struct Ast * visitor_visit_return(struct Visitor *, struct Ast *, struct List *);
+struct Ast * visitor_visit_if(struct Visitor *, struct Ast *, struct List *);
+struct Ast * visitor_visit_while(struct Visitor *, struct Ast *, struct List *);
+struct Ast * visitor_visit_for(struct Visitor *, struct Ast *, struct List *);
 struct Ast * visitor_visit_call(struct Visitor *, struct Ast *, struct List *);
 struct Ast * visitor_visit_value(struct Visitor *, struct Ast *, struct List *);
 struct Ast * visitor_visit_array(struct Visitor *, struct Ast *, struct List *);

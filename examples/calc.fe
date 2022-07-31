@@ -1,19 +1,9 @@
 main : int () => {
 
-	a : int = 2;
-	b : int = 3;
-	c : int = 1;
-
-	a = a & b;
-	b = 4;
-	b = square(square(b));
-	c = square(3) % 4;
 	
-	show(a);
-	show(b);
-	show(c);
+
 }
 
-square: int (num: int) => {
-	return num * num;
+sum: int (a: int, b: int, c: int, d: int, e: int, f:int, g: int) => {
+	return a+b+c+d+e+f+g;
 }

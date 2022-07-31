@@ -7,8 +7,9 @@ struct Lexer {
 	
 	char *src;
 	size_t size;
-	char c; 
+	char c;
 	unsigned int i;
+	unsigned int line, pos;
 
 };
 
@@ -27,3 +28,4 @@ struct Token * lexer_parse_int(struct Lexer *);
 struct Token * lexer_parse_string(struct Lexer *);
 struct Token * lexer_parse_comment(struct Lexer *);
 struct Token * lexer_next_token(struct Lexer *);
+struct Token * lexer_parse_operation(struct Lexer *);

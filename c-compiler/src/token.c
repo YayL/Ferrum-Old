@@ -2,11 +2,13 @@
 
 #include "common.h"
 
-struct Token * init_token(char* value, int type) {
+struct Token * init_token(char* value, int type, unsigned int line, unsigned int pos) {
 
 	struct Token * token = malloc(sizeof(struct Token));
 	token->value = value;
 	token->type = type;
+	token->line = line;
+	token->pos = pos;
 
 	return token;
 }
@@ -40,10 +42,10 @@ const char* token_type_to_str(int type) {
 
 void print_token(const char * template, struct Token * token) {
 	const char* type_str = token_type_to_str(token->type);
-	const char* token_template = "<type='{s}', code='{u}', value='{s}'>";
+	const char* token_template = "{2u::} <type='{s}', code='{u}', value='{s}'>";
 	
 	char * src = format(template, token_template);
 
-	print(src, type_str, token->type, token->value);
+	print(src, token->line, token->pos-2, type_str, token->type, token->value);
 	free(src);
 } 

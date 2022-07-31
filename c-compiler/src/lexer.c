@@ -12,18 +12,30 @@ struct Lexer * init_lexer(char* src) {
 	lexer->size = strlen(src);
 	lexer->i = 0;
 	lexer->c = src[0];
+	lexer->line = 1;
+	lexer->pos = 0;
 
 	return lexer;
 }
 
 void lexer_advance(struct Lexer * lexer) {
-	if(lexer->i < lexer->size && lexer->c != EOF)
+	if(lexer->i < lexer->size && lexer->c != EOF) {
 		lexer->c = lexer->src[++lexer->i];
+		lexer->pos++;
+	}
 }
 
 void lexer_skip_whitespaces(struct Lexer * lexer) {
-	while(lexer->c == ' ' || lexer->c == '\t' || lexer->c == 13 || lexer->c == '\n')
+	while(1) {
+		switch (lexer->c) {
+			case '\t': lexer->pos--; break;
+			case '\n': ++lexer->line;
+			case 13: lexer->pos = 0;
+			case ' ': break;
+			default: return;
+		}
 		lexer_advance(lexer);
+	}
 }
 
 char lexer_peek(struct Lexer * lexer, int offset) {
@@ -49,7 +61,7 @@ struct Token * lexer_parse_id(struct Lexer * lexer) {
 
 	value[size] = 0;
 
-	return init_token(value, TOKEN_ID);
+	return init_token(value, TOKEN_ID, lexer->line, lexer->pos);
 }
 
 struct Token * lexer_parse_int(struct Lexer * lexer) {
@@ -62,7 +74,7 @@ struct Token * lexer_parse_int(struct Lexer * lexer) {
 		lexer_advance(lexer);
 	}
 
-	return init_token(value, TOKEN_INT);
+	return init_token(value, TOKEN_INT, lexer->line, lexer->pos);
 }
 
 struct Token * lexer_parse_string(struct Lexer * lexer) {
@@ -81,7 +93,7 @@ struct Token * lexer_parse_string(struct Lexer * lexer) {
 	string[length - 1] = 0;
 	lexer->i = end;
 
-	return init_token(string, TOKEN_STRING);
+	return init_token(string, TOKEN_STRING, lexer->line, lexer->pos);
 
 }
 
@@ -96,7 +108,7 @@ struct Token * lexer_advance_current(struct Lexer * lexer, int type) {
 	value[0] = lexer->c;
 	value[1] = '\0';
 
-	struct Token * token = init_token(value, type);
+	struct Token * token = init_token(value, type, lexer->line, lexer->pos);
 	lexer_advance(lexer);
 
 	#ifdef LEXER_DEBUG
@@ -118,6 +130,39 @@ struct Token * lexer_advance_with(struct Lexer * lexer, struct Token * token) {
 	return token;
 }
 
+struct Token * lexer_parse_operation(struct Lexer * lexer) {
+	const char operators[] = "+-*/%^|&=<>!";
+	const unsigned int op_count = (sizeof(operators) / sizeof(char)) - 1;
+	unsigned int len = 1;
+
+	loop: 
+	{
+		char c = lexer_peek(lexer, len);
+		for (unsigned int i = 0; i < op_count; ++i) {
+			if (c == operators[i]){
+				++len;
+				goto loop;
+			}
+		}
+	}
+	char * value = malloc((len + 1) * sizeof(char));
+	for (unsigned int i = 0; i < len; ++i) {
+		value[i] = lexer->c;
+		lexer_advance(lexer);
+	}
+	value[len] = 0;
+
+	println("next: {c}", lexer->c);
+
+	struct Token * token = init_token(value, TOKEN_OP, lexer->line, lexer->pos);
+
+	#ifdef LEXER_DEBUG
+		println("Debug [Lexer]: {s} [{u}]", token->value, token->type);
+	#endif
+
+	return token;
+}
+
 struct Token * lexer_next_token(struct Lexer * lexer) {
 
 	lexer_skip_whitespaces(lexer);
@@ -130,14 +175,18 @@ struct Token * lexer_next_token(struct Lexer * lexer) {
 		if(isdigit(lexer->c)) {
 			return lexer_parse_int(lexer);
 		}
-
-		switch(lexer->c) {
+		
+		char peek = lexer_peek(lexer, 1);
+		
+		switch (lexer->c) {
 
 			case '=': {
-				if(lexer_peek(lexer, 1) == '>'){
-					return lexer_advance_with(lexer, lexer_advance_with(lexer, init_token("=>", TOKEN_DEF)));
-				}
-				return lexer_advance_with(lexer, init_token("=", TOKEN_EQUALS));
+				if (peek == '>')
+					return lexer_advance_with(lexer, lexer_advance_with(lexer, init_token("=>", TOKEN_DEF, lexer->line, lexer->pos)));
+				else if (peek == '=')
+					return lexer_parse_operation(lexer);
+				else
+					return lexer_advance_with(lexer, init_token("=", TOKEN_EQUALS, lexer->line, lexer->pos));
 			}
 			case '(': return lexer_advance_current(lexer, TOKEN_LPAREN);
 			case ')': return lexer_advance_current(lexer, TOKEN_RPAREN);
@@ -148,8 +197,6 @@ struct Token * lexer_next_token(struct Lexer * lexer) {
 			case ',': return lexer_advance_current(lexer, TOKEN_COMMA);
 			case ':': return lexer_advance_current(lexer, TOKEN_COLON);
 			case ';': return lexer_advance_current(lexer, TOKEN_SEMI);
-			case '<': return lexer_advance_current(lexer, TOKEN_LT);
-			case '>': return lexer_advance_current(lexer, TOKEN_GT);
 			case '"': return lexer_advance_with(lexer, lexer_parse_string(lexer));
 			case '/':
 				if (lexer_peek(lexer, 1) == '/')
@@ -160,11 +207,13 @@ struct Token * lexer_next_token(struct Lexer * lexer) {
 			case '|':
 			case '^':
 			case '%':
-			case '*': return lexer_advance_current(lexer, TOKEN_OP);
+			case '<':
+			case '>':
+			case '*': return lexer_parse_operation(lexer);
 			default: println("\n[Lexer]: Unexpected characther: {c} == {u}", lexer->c, lexer->c); exit(1);
 		}
 
 	}
 
-	return init_token(0, TOKEN_EOF);
+	return init_token(0, TOKEN_EOF, lexer->line, lexer->pos);
 }

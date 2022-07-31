@@ -26,10 +26,10 @@ struct Visitor * init_visitor(struct Ast * root) {
 	return visitor;}
 
 struct Ast * visitor_visit_compound(struct Visitor * visitor, struct Ast * node, struct List * list) {
-	struct Ast * compound = init_ast(AST_COMPOUND);
+	struct Ast * compound = init_ast(AST_COMPOUND);	
 
 	for (size_t i = 0; i < node->nodes->size; ++i) {
-		list_push(compound->nodes, visitor_visit(visitor, node->nodes->items[i], list));
+		list_push(compound->nodes, visitor_visit(visitor, list_at(node->nodes, i), list));
 	}
 
 	return compound;
@@ -106,10 +106,20 @@ struct Ast * visitor_visit_variable(struct Visitor * visitor, struct Ast * node,
 
 }
 
-struct Ast * visitor_visit_statement(struct Visitor * visitor, struct Ast * node, struct List * list) {
-
+struct Ast * visitor_visit_return(struct Visitor * visitor, struct Ast * node, struct List * list) {
 	return node;
+}
 
+struct Ast * visitor_visit_if(struct Visitor * visitor, struct Ast * node, struct List * list) {
+	return node;
+}
+
+struct Ast * visitor_visit_for(struct Visitor * visitor, struct Ast * node, struct List * list) {
+	return node;
+}
+
+struct Ast * visitor_visit_while(struct Visitor * visitor, struct Ast * node, struct List * list) {
+	return node;
 }
 
 struct Ast * visitor_visit_call(struct Visitor * visitor, struct Ast * node, struct List * list) {
@@ -194,13 +204,18 @@ struct Ast * visitor_visit(struct Visitor * visitor, struct Ast * node, struct L
 		print_ast("Debug [Visitor]: {s}\n", node);
 	#endif
 
+	//println("{i}", node->type);
+
 	switch(node->type) {
 		case AST_COMPOUND: return visitor_visit_compound(visitor, node, list);
 		case AST_FUNCTION: return visitor_visit_function(visitor, node, list);
 		case AST_ASSIGNMENT: return visitor_visit_assignment(visitor, node, list);
 		case AST_DECLARE: return visitor_visit_declare(visitor, node, list);
 		case AST_VARIABLE: return visitor_visit_variable(visitor, node, list);
-		case AST_STATEMENT: return visitor_visit_statement(visitor, node, list);
+		case AST_STATEMENT_RETURN: return visitor_visit_return(visitor, node, list);
+		case AST_STATEMENT_IF: return visitor_visit_if(visitor, node, list);
+		case AST_STATEMENT_WHILE: return visitor_visit_while(visitor, node, list);
+		case AST_STATEMENT_FOR: return visitor_visit_for(visitor, node, list);
 		case AST_CALL: return visitor_visit_call(visitor, node, list);
 		case AST_VALUE: return visitor_visit_value(visitor, node, list);
 		case AST_ARRAY: return visitor_visit_array(visitor, node, list);
@@ -209,7 +224,7 @@ struct Ast * visitor_visit(struct Visitor * visitor, struct Ast * node, struct L
 		case AST_EXPR: return node; //visitor_visit_eval(visitor, node, list);
 		case AST_BINOP: return node;
 		case AST_INT: return node;
-		default: println("[Visitor]: Unable to handle AST type '{u}'", node->type); exit(1);
+		default: println("[Visitor]: Unable to handle AST type '{u}' == '{s}'", node->type, ast_type_to_str(node->type)); exit(1);
 	}
 
 }

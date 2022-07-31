@@ -138,39 +138,50 @@ char * as_f_declare(struct Ast * ast, struct List * list) {
 	return format(template, as_f_assignment(ast, list));
 }
 
-char * as_f_statement(struct Ast * ast, struct List * list) {
-	if (strncmp(ast->name, "return", 5) == 0) {
-		const char * template = "{s}"
-								"pop rax\n"; // mov rdi, %s
+char * as_f_return(struct Ast * ast, struct List * list) {
+	const char * template = "{s}"
+							"pop rax\n"; // mov rdi, %s
 
+	struct Ast * ret_ast = (struct Ast * ) 
+								ast->value
+									? ast->value
+									: (void* )0;
 
-		struct Ast * ret_ast = (struct Ast * ) 
-									ast->value
-										? ast->value
-										: (void* )0;
+	char * ret_val = format("push {i}\n", ret_ast->int_value);
 
-		char * ret_val = format("push {i}\n", ret_ast->int_value);
-
-		if (ret_ast) {
-			print_ast("AST: {s}\n", ret_ast);
-			switch(ret_ast->type) { 
-				case AST_VARIABLE: ret_val = as_f_variable(ast->value, list); break;
-				case AST_ACCESS: ret_val = as_f_access(ast->value, list); break;
-				case AST_EXPR: ret_val = as_f_expr(ast->value, list); break;
-			}
+	if (ret_ast) {
+		switch(ret_ast->type) { 
+			case AST_VARIABLE: ret_val = as_f_variable(ast->value, list); break;
+			case AST_ACCESS: ret_val = as_f_access(ast->value, list); break;
+			case AST_EXPR: ret_val = as_f_expr(ast->value, list); break;
 		}
-
-		char * src = format(template, ret_val);
-
-		#ifdef AS_F_DEBUG
-			print_ast("\nDebug [Assembly Frontend]:\n\t{s}\n", ast);
-			print_ast("\t{s}\n", ast->value);
-		#endif
-
-		return src;
 	}
 
-	return "; as_f_statement\n";
+	char * src = format(template, ret_val);
+
+	#ifdef AS_F_DEBUG
+		print_ast("\nDebug [Assembly Frontend]:\n\t{s}\n", ast);
+		print_ast("\t{s}\n", ast->value);
+	#endif
+
+	return src;
+}
+ 
+char * as_f_if (struct Ast * ast, struct List * list) {
+
+	return "; as_f_if";
+
+}
+
+char * as_f_for(struct Ast * ast, struct List * list) {
+
+	return "; as_f_for";
+
+}
+
+char * as_f_while(struct Ast * ast, struct List * list) {
+
+	return "; as_f_while";
 
 }
 
@@ -201,42 +212,78 @@ char* as_f_call(struct Ast * ast, struct List * list) {
 
 }
 
-char * as_f_expr(struct Ast * ast, struct List * list) {
-	
-	print_ast("expr: {s}\n", ast);
-	print_list(ast->nodes);
-
-	char * left = as_f(list_at(ast->nodes, 0), list);
-	char * right = as_f(list_at(ast->nodes, 2), list);
-	char *	operation, 
-			* template =	"pop {s}\n"
-							"pop {s}\n"
-							"{s}\n"
-							"push {s}\n";
-	
-
-	struct Ast * op_ast = list_at(ast->nodes, 1);
-	
-	char op = op_ast->name[0];
+char * as_f_1_binop(char * template, char op, char left, char right) {
 	switch (op) {
-		case '+': operation = format(template, "rbx", "rax", "add rax, rbx", "rax"); break;
-		case '-': operation = format(template, "rbx", "rax", "sub rax, rbx", "rax"); break;
-		case '^': operation = format(template, "rbx", "rax", "xor rax, rbx", "rax"); break;
-		case '|': operation = format(template, "rbx", "rax", "or rax, rbx", "rax"); break;
-		case '&': operation = format(template, "rbx", "rax", "and rax, rbx", "rax"); break;
-		case '*': operation = format(template, "rbx", "rax", "mul rbx", "rax"); break;
-		case '/': operation = format(template, "rax", "rbx", "div rbx", "rax"); break;
-		case '%': operation = format(template, "rax", "rbx", "div rbx", "rdx"); break;
+		case '+': return format(template, "rbx", "rax", "add rax, rbx", "rax");
+		case '-': return format(template, "rax", "rbx", "sub rax, rbx", "rax");
+		case '*': return format(template, "rbx", "rax", "mul rbx", "rax");
+		case '/': return format(template, "rax", "rbx", "div rbx", "rax");
+		case '%': return format(template, "rax", "rbx", "div rbx", "rdx");
+		case '^': return format(template, "rbx", "rax", "xor rax, rbx", "rax");
+		case '|': return  format(template, "rbx", "rax", "or rax, rbx", "rax");
+		case '&': return format(template, "rbx", "rax", "and rax, rbx", "rax");
 		default:
-			println("[Compiler] Error: Operator '{c}' is not supported yet!", op);
+			println("[Compiler] Error: Operator '{c}' is not supported.", op);
 			exit(1);
 	}
+}
+
+char * as_f_2_binop(char * template, char * op, char left, char right) {
+
+	if (strcmp(op, "++") == 0) {
+		
+		return "; ++";
+
+	} else {
+		println("[Compiler] Error: Operator '{s}' is not supported.", op);
+		exit(1);
+	}
+}
+
+char * as_f_expr(struct Ast * ast, struct List * list) {
+	
+	char * left = 0, * right = 0, * operation = 0,
+		 * template =	"pop {s}\n"
+						"pop {s}\n"
+						"{s}\n"
+						"push {s}\n", 
+		 * op = 0;
+
+	unsigned int operator_len = 0;
+
+	print_ast("Expr: {s}\n", ast);
+
+	if (ast->left) {
+		left = as_f(ast->left, list);
+	} else {
+		left = "push 0\n";
+	}
+	if (ast->value) {
+		op = ast->value->name;
+		while (op[operator_len++]);
+		operator_len--;
+	}
+	if (ast->right) {
+		right = as_f(ast->right, list);
+	} else {
+		right = "push 0\n";
+	}
+	
+	switch (operator_len) {
+		case 0:
+			println("[Compiler] Error: There was no operator specified."); exit(1);
+		case 1:
+			operation = as_f_1_binop(template, op[0], left != 0, right != 0); break;
+		case 2:
+			operation = as_f_2_binop(template, op, left != 0, right != 0); break;
+	}
+
 
 	return format("{3s}", right, left, operation);
 
 }
 
-char* as_f_value(struct Ast * ast, struct List * list) {
+char * as_f_value(struct Ast * ast, struct List * list) {
 
 	return "; as_f_value\n";
 
@@ -288,7 +335,10 @@ char* as_f(struct Ast * ast, struct List * list) {
 		case AST_ASSIGNMENT: next_value = as_f_assignment(ast, list); break;
 		case AST_DECLARE: next_value = as_f_declare(ast, list); break;
 		case AST_VARIABLE: next_value = as_f_variable(ast, list); break;
-		case AST_STATEMENT: next_value = as_f_statement(ast, list); break;
+		case AST_STATEMENT_FOR: next_value = as_f_for(ast, list); break;
+		case AST_STATEMENT_IF: next_value = as_f_if(ast, list); break;
+		case AST_STATEMENT_RETURN: next_value = as_f_return(ast, list); break;
+		case AST_STATEMENT_WHILE: next_value = as_f_while(ast, list); break;
 		case AST_CALL: next_value = as_f_call(ast, list); break;
 		case AST_VALUE: next_value = as_f_value(ast, list); break;
 		case AST_ARRAY: next_value = as_f_array(ast, list); break;
@@ -297,7 +347,7 @@ char* as_f(struct Ast * ast, struct List * list) {
 		case AST_STRING: next_value = as_f_const_string(ast, list); break;
 		case AST_INT: next_value = as_f_int(ast, list); break;
 		case AST_EXPR: next_value = as_f_expr(ast, list); break;
-		default: println("[Assembler Frontend]: Unknown AST type '{i}'", ast->type); exit(1);
+		default: println("[Assembler Frontend]: Unknown AST type '{s}'({i})", ast_type_to_str(ast->type), ast->type); exit(1);
 	}
 
 	return next_value;
