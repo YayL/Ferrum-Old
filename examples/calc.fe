@@ -1,12 +1,14 @@
 main : int () => {
 	
-	var: int = 0; num: int = 0;
-	var = var + 2;
-	num = var;
+	number: int = 2;
+	squared: int;
+	squared = square(++number);
 	
-	show(num);
+	show(squared);
+	
+	return 0;
 }
 
-sum: int (a: int, b: int, c: int, d: int, e: int, f:int, g: int) => {
-	return a+b+c+d+e+f+g;
+square: int (num: int) => {
+	return num*num;
 }

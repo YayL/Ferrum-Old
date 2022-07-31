@@ -1,0 +1,22 @@
+main : int () => {
+	
+	squared: int;
+	number: int = 3;
+	squared = square(number);
+	
+	if (squared == 9) {
+		put("3^2");
+	else if (squared == number) {
+		put("1^2");
+	} else {
+		put("Not 3^2 or 1^2");
+	}
+
+
+	
+	return 0;
+}
+
+square: int (num: int) => {
+	return num*num;
+}

@@ -20,7 +20,7 @@
  ---------------------------------------------------------------
  */
 
-struct Ast * lookup(struct List * list, const char * name) {
+struct Ast * lookup(struct List * list, char * name) {
 	for(size_t i = 1; i < list->size; ++i) {
 		struct Ast * ret = list->items[i];
 		if(strcmp(ret->name, name) == 0) {
@@ -171,20 +171,22 @@ char * as_f_return(struct Ast * ast, struct List * list) {
 }
  
 char * as_f_if (struct Ast * ast, struct List * list) {
+	
+	
 
-	return "; as_f_if";
+	return "; as_f_if\n";
 
 }
 
 char * as_f_for(struct Ast * ast, struct List * list) {
 
-	return "; as_f_for";
+	return "; as_f_for\n";
 
 }
 
 char * as_f_while(struct Ast * ast, struct List * list) {
 
-	return "; as_f_while";
+	return "; as_f_while\n";
 
 }
 
@@ -200,8 +202,12 @@ char* as_f_call(struct Ast * ast, struct List * list) {
 	char * argument_src = 0;
 	unsigned int len = ast->nodes->size;
 
+	println("");
+
 	for (size_t i = len; i > 0; --i) {
-		char * curr_argument_src = as_f(ast->nodes->items[i - 1], list);
+		struct Ast * arg = list_at(ast->nodes, i - 1);
+		print_ast("Arg: {s}\n", arg);
+		char * curr_argument_src = as_f(arg, list);
 
 		argument_src = format("{2s}", argument_src, curr_argument_src);
 		free(curr_argument_src);
@@ -231,12 +237,35 @@ char * as_f_1_binop(char * template, char op, char left, char right) {
 	}
 }
 
-char * as_f_2_binop(char * template, char * op, char left, char right) {
-
+char * as_f_2_binop(struct Ast * ast, char * template, char * op, char left, char right) {
 	if (strcmp(op, "++") == 0) {
-		
-		return "; ++";
-
+		if (right) { // ++var
+			return format("mov rax, [rbp{Si}]\n"
+							"inc rax\n"
+							"mov [rbp{Si}], rax\n"
+							"push rax\n", ast->int_value, ast->int_value);
+		} else { // var++
+			return format (	"mov rax, [rbp{Si}]\n"
+							"push rax\n"
+							"inc rax\n"
+							"mov [rbp{Si}], rax\n", ast->int_value, ast->int_value);
+		}
+	} else if (strcmp(op, "--") == 0) {
+		if (right) { // ++var
+			return format("mov rax, [rbp{Si}]\n"
+							"dec rax\n"
+							"mov [rbp{Si}], rax\n"
+							"push rax\n", ast->int_value, ast->int_value);
+		} else { // var++
+			return format (	"mov rax, [rbp{Si}]\n"
+							"push rax\n"
+							"dec rax\n"
+							"mov [rbp{Si}], rax\n", ast->int_value, ast->int_value);
+		}
+	} else if (strcmp(op, "<<") == 0) {
+		return format(template, "rax", "rcx", "shl rax, cl", "rax");
+	} else if (strcmp(op, ">>") == 0) {
+		return format(template, "rax", "rbx", "shr rax, rbx", "rax");
 	} else {
 		println("[Compiler] Error: Operator '{s}' is not supported.", op);
 		exit(1);
@@ -276,9 +305,12 @@ char * as_f_expr(struct Ast * ast, struct List * list) {
 		case 0:
 			println("[Compiler] Error: There was no operator specified."); exit(1);
 		case 1:
-			operation = as_f_1_binop(template, op[0], left != 0, right != 0); break;
-		case 2:
-			operation = as_f_2_binop(template, op, left != 0, right != 0); break;
+			operation = as_f_1_binop(template, op[0], ast->left != 0, ast->right != 0); break;
+		case 2: {
+			right = 0, left = 0;
+			struct Ast * var = lookup(list,  (ast->left ? ast->left : ast->right)->name);
+			operation = as_f_2_binop(var, template, op, ast->left != 0, ast->right != 0); break;
+			}
 	}
 
 

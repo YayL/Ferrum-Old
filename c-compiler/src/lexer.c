@@ -151,8 +151,6 @@ struct Token * lexer_parse_operation(struct Lexer * lexer) {
 	}
 	value[len] = 0;
 
-	println("next: {c}", lexer->c);
-
 	struct Token * token = init_token(value, TOKEN_OP, lexer->line, lexer->pos);
 
 	#ifdef LEXER_DEBUG
