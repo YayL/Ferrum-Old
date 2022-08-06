@@ -15,17 +15,14 @@ void ferrum_compile(char * src) {
 	struct Parser * parser = init_parser(lexer);
 	struct Ast * root = parser_parse(parser);
 	struct Visitor * runtime = init_visitor(root);
-	struct List * context = init_list(sizeof(struct Ast));
 	
-	struct Ast * visited_root = visitor_visit(runtime, root, init_list(sizeof(struct Ast)));	
+	struct Ast * visited_root = visitor_visit(runtime, root, init_list(sizeof(struct Ast)));
 
 	char * src_code = as_f_root(visited_root, runtime, init_list(sizeof(struct Ast)));
 
-	char * new_filename = "ferrum.nasm";
+	write_file("ferrum.asm", src_code);
 
-	write_file("ferrum.nasm", src_code);
-
-	char * output = exec("nasm -f elf64 ferrum.nasm -o ferrum.o && ld ferrum.o -o ferrum");
+	char * output = exec("nasm -f elf64 ferrum.asm -o ferrum.o && ld ferrum.o -o ferrum");
 
 	println("{s}", output);
 }

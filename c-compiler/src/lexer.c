@@ -28,7 +28,7 @@ void lexer_advance(struct Lexer * lexer) {
 void lexer_skip_whitespaces(struct Lexer * lexer) {
 	while(1) {
 		switch (lexer->c) {
-			case '\t': lexer->pos--; break;
+			case '\t': lexer->pos = 0; break;
 			case '\n': ++lexer->line;
 			case 13: lexer->pos = 0;
 			case ' ': break;
@@ -44,7 +44,7 @@ char lexer_peek(struct Lexer * lexer, int offset) {
 }
 
 struct Token * lexer_parse_id(struct Lexer * lexer) {
-	unsigned int copy = lexer->i, size, i = 0;
+	unsigned int copy = lexer->i, size;
 	while(isalpha(lexer->c) || lexer->c == '_') lexer_advance(lexer);
 	
 	size = lexer->i - copy;
@@ -206,6 +206,7 @@ struct Token * lexer_next_token(struct Lexer * lexer) {
 			case '%':
 			case '<':
 			case '>':
+			case '!':
 			case '*': return lexer_parse_operation(lexer);
 			default: println("\n[Lexer]: Unexpected characther: {c} == {u}", lexer->c, lexer->c); exit(1);
 		}

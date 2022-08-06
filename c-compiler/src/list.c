@@ -2,6 +2,10 @@
 
 #include "AST.h"
 #include <memory.h>
+#include "list.h"
+
+#include "AST.h"
+#include <memory.h>
 
 
 struct List * init_list(size_t item_size) {
@@ -58,10 +62,34 @@ void* list_at(struct List * list, int index) {
 }
 
 void print_list(struct List * list) {
-
+	
 	println("<size={u}, capacity={u}, item_size={u}>", list->size, list->capacity, list->item_size);
 	for(size_t i = 0; i < list->size; ++i) {
-		print_ast("\t{s}\n", list->items[i]);
+		struct Ast * item = list_at(list, i);
+		print_ast("\t{s}\n", item);
 	}
 
+}
+
+void list_reserve(struct List * list, unsigned int additions) {
+	
+	list->capacity += additions;
+	list->items = realloc(list->items, list->capacity * list->item_size);
+
+}
+
+void * list_copy(struct List * list) {
+	if (list == NULL || list->size == 0) {
+		return list;
+	}
+
+	struct List * copy = init_list(list->item_size);
+	copy->size = list->size;
+	list_reserve(copy, copy->size);	
+
+	for (unsigned int i = 0; i < list->size; ++i) {
+		copy->items[i] = list->items[i];
+	}
+
+	return copy;
 }

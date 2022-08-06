@@ -73,7 +73,6 @@ char* as_f_function(struct Ast * ast, struct List * list) {
 		list_push(child_list, variable);
 	}
 	
-	print_list(ast_val->value->nodes);
 	char * ast_val_val = as_f(ast_val->value, child_list);
 	
 	const char * template =	"\nglobal {s}\n"	
@@ -82,15 +81,20 @@ char* as_f_function(struct Ast * ast, struct List * list) {
 							"mov rbp, rsp\n"
 							"sub rsp, {u}\n";
 
-	const char * ret_template = "mov rsp, rbp\n"
+	char * ret_template = ".{s}_end:\n"
+								"mov rsp, rbp\n"
 								"pop rbp\n"
 								"ret\n";
-	
+	ret_template = format(ret_template, ast->name);
 
 	char * src = format(template, ast->name, ast->name, 
 						(child_list->size - ast_val->nodes->size - 1) << 3);
 	
 	char * buf = format("{3s}", src, ast_val_val, ret_template);
+
+	free(ast_val_val);
+	free(ret_template);
+	free(src);
 
 	return buf;
 }
@@ -107,8 +111,6 @@ char* as_f_assignment(struct Ast * ast, struct List * list) {
 		println("[Compiler] Error: Variable `{s}` has not been declared in this scope", ast->name);
 		exit(1);
 	}
-
-	print_ast("assignment: {s}\n", ast);
 
 	return format(template, as_f(ast->value, list), variable->int_value);
 }
@@ -143,24 +145,12 @@ char * as_f_declare(struct Ast * ast, struct List * list) {
 
 char * as_f_return(struct Ast * ast, struct List * list) {
 	const char * template = "{s}"
-							"pop rax\n"; // mov rdi, %s
+							"pop rax\n"
+							"jmp .{s}_end\n";
 
-	struct Ast * ret_ast = (struct Ast * ) 
-								ast->value
-									? ast->value
-									: (void* )0;
+	struct Ast * func = list_at(list, 0);
 
-	char * ret_val = format("push {i}\n", ret_ast->int_value);
-
-	if (ret_ast) {
-		switch(ret_ast->type) { 
-			case AST_VARIABLE: ret_val = as_f_variable(ast->value, list); break;
-			case AST_ACCESS: ret_val = as_f_access(ast->value, list); break;
-			case AST_EXPR: ret_val = as_f_expr(ast->value, list); break;
-		}
-	}
-
-	char * src = format(template, ret_val);
+	char * src = format(template, as_f(ast->value, list), func->name);
 
 	#ifdef AS_F_DEBUG
 		print_ast("\nDebug [Assembly Frontend]:\n\t{s}\n", ast);
@@ -172,25 +162,180 @@ char * as_f_return(struct Ast * ast, struct List * list) {
  
 char * as_f_if (struct Ast * ast, struct List * list) {
 	
+	const unsigned int index = ast->int_value;
+	const char  * end_template = ".L{u}_end";
+
+	char * src = 0,
+		 * end = format(end_template, index);
+
+	if (ast->value) {
+		println("condition:");
+	}
+
+	const char * condition_template =	"{s}\n"
+										".L{u}_{u}:\n"
+										"{3s}"
+										"jmp {s}\n",
+				* else_template =	"{s}\n"
+									".L{u}_{u}:\n"
+									"{s}\n";
 	
+	unsigned int prev_size = list->size;
 
-	return "; as_f_if\n";
+	struct Ast * expr;
 
+	for (unsigned int i = 0; i < ast->nodes->size; ++i) {
+		expr = list_at(ast->nodes, i);
+		if (expr->value ) { // this is if and else if
+			char * eval = as_f(expr->value, list);
+			char * scope = as_f(expr, list), * cond = 0;
+			if ((i + 1) < ast->nodes->size) {
+				if (list_at(ast->nodes, i + 1) != NULL)
+					cond = format("pop rax\ncmp al, 0\njz .L{u}_end\n", index);
+				else
+					cond = format("pop rax\ncmp al, 0\njz .L{u}_{u}\n", index, i + 1);
+			}
+
+			//print_ast("expr: {s}", expr);
+			src = format(condition_template, src, index, i, eval, cond, scope, end);
+			free(eval);
+		} else { // this is for else statements
+			char * scope = as_f(expr, list);
+			src = format(else_template, src, index, i, scope);
+		}
+	}
+
+	while (prev_size != list->size) list_pop(list);
+	
+	src = format("{2s}:\n", src, end);
+
+	free(end);
+
+	return src;
 }
 
 char * as_f_for(struct Ast * ast, struct List * list) {
 
-	return "; as_f_for\n";
+	const char * template = "{s}"
+							".L{u}_s:\n" // jump_target
+							"{s}"		// evaluation
+							"pop rax\n"
+							"cmp al, 0\n"
+							"jnz .L{u}_end\n"
+							"{s}"		// scope
+							".L{u}_c:\n" // jump_target
+							"{s}"		// evaluation
+							"jmp .L{u}_s\n"
+							".L{u}_end:\n"; //jump_target
+
+	const unsigned int index = ast->int_value, prev_size = list->size;
+
+	struct Ast * node = list_at(ast->nodes, 0);
+	char * scope = node != NULL ? as_f(node, list) : 0;
+	node = ast->left;
+	char * pre = node != NULL ? as_f(node, list) : 0;
+	node = ast->right;
+	char * post = node != NULL ? as_f(node, list) : 0;
+
+	char * condition = as_f(ast->value, list);
+	while (prev_size != list->size) list_pop(list);
+	
+	char * src = format(template, pre, index, condition, index, scope, index, post, index, 
+						index);
+
+	free(scope);
+	free(pre);
+	free(post);
+	free(condition);
+
+	return src;
 
 }
 
 char * as_f_while(struct Ast * ast, struct List * list) {
 
-	return "; as_f_while\n";
+	const char * template = ".L{u}_c:\n"
+							"{s}"
+							"pop rax\n"
+							"cmp al, 0\n"
+							"jnz .L{u}_end\n"
+							"{s}"
+							"jmp .L{u}_c\n"
+							".L{u}_end:\n";
+
+
+	const unsigned int index = ast->int_value, prev_size = list->size;
+	
+	char * scope = as_f(ast->value, list);
+	char * condition = as_f(ast->left, list);
+
+	while (prev_size != list->size) list_pop(list);
+	
+	char * ret = format(template, index, condition, index, scope, index, index);
+
+	free(scope);
+	free(condition);
+
+	return ret;
+	
+}
+
+char * as_f_do(struct Ast * ast, struct List * list) {
+	
+	const unsigned int index = ast->int_value, prev_size = list->size;
+
+	const char * template = ".L{u}_c\n"
+							"{s}";
+	
+	char * src = as_f(ast->value, list);
+	
+	free(src);
+
+	while (prev_size != list->size) list_pop(list);
+
+	return format(template, index, src);
 
 }
 
-char* as_f_call(struct Ast * ast, struct List * list) {
+char * as_f_do_while(struct Ast * ast, struct List * list) {
+
+	const char * template = ".L{u}_s:\n" // jump_target
+							"{s}\n"		// scope
+							".L{u}_c:\n" // jump_target
+							"{s}\n"		// evaluation
+							"pop rax\n"
+							"cmp al, 0\n"
+							"jz .L{u}_s\n"// jump_target
+							".L{u}_end:\n"; //jump_target
+
+
+	const unsigned int index = ast->int_value, prev_size = list->size;
+	
+	char * scope = as_f(ast->value, list);
+	char * eval = as_f(ast->left, list);
+
+	while (prev_size != list->size) list_pop(list);
+	
+	char * ret = format(template, index, scope, index, eval, index, index);
+
+	free(scope);
+	free(eval);
+
+	return ret;
+}
+
+char * as_f_break(struct Ast * ast, struct List * list) {
+
+	return format("jmp .L{u}_end ; break\n", ast->int_value);
+
+}
+
+char * as_f_continue(struct Ast * ast, struct List * list) {
+
+	return format("jmp .L{u}_c ; continue\n", ast->int_value);
+}
+
+char * as_f_call(struct Ast * ast, struct List * list) {
 	const char * template =	"push r8\n"
 							"mov r8, rsp\n"
 							"{s}"
@@ -202,11 +347,8 @@ char* as_f_call(struct Ast * ast, struct List * list) {
 	char * argument_src = 0;
 	unsigned int len = ast->nodes->size;
 
-	println("");
-
-	for (size_t i = len; i > 0; --i) {
-		struct Ast * arg = list_at(ast->nodes, i - 1);
-		print_ast("Arg: {s}\n", arg);
+	for (size_t i = 0; i < len; ++i) {
+		struct Ast * arg = list_at(ast->nodes, len - i - 1);
 		char * curr_argument_src = as_f(arg, list);
 
 		argument_src = format("{2s}", argument_src, curr_argument_src);
@@ -217,73 +359,48 @@ char* as_f_call(struct Ast * ast, struct List * list) {
 		print_ast("\nDebug [Assembly Frontend]: 11111\n\t{s}\n", ast);
 	#endif
 	
-	return format(template, argument_src, ast->name, ast->push ? "push rax" : "");
+	char * ret = format(template, argument_src, ast->name, ast->push ? "push rax" : "");
+	free(argument_src);
+	return ret;
 
 }
 
-char * as_f_1_binop(char * template, char op, char left, char right) {
+const char * cmp_template =	"pop rax\n"
+							"pop rbx\n"
+							"cmp rax, rbx\n"
+							"{s} al\n"
+							"push rax\n",
+			* op_template =	"pop {s}\n"
+							"pop {s}\n"
+							"{s}\n"
+							"push {s}\n";
+
+char * as_f_1_binop(char op) {
+	
 	switch (op) {
-		case '+': return format(template, "rbx", "rax", "add rax, rbx", "rax");
-		case '-': return format(template, "rax", "rbx", "sub rax, rbx", "rax");
-		case '*': return format(template, "rbx", "rax", "mul rbx", "rax");
-		case '/': return format(template, "rax", "rbx", "div rbx", "rax");
-		case '%': return format(template, "rax", "rbx", "div rbx", "rdx");
-		case '^': return format(template, "rbx", "rax", "xor rax, rbx", "rax");
-		case '|': return  format(template, "rbx", "rax", "or rax, rbx", "rax");
-		case '&': return format(template, "rbx", "rax", "and rax, rbx", "rax");
+		case '+': return format(op_template, "rbx", "rax", "add rax, rbx", "rax");
+		case '-': return format(op_template, "rax", "rbx", "sub rax, rbx", "rax");
+		case '*': return format(op_template, "rbx", "rax", "mul rbx", "rax");
+		case '/': return format(op_template, "rax", "rbx", "div rbx", "rax");
+		case '%': return format(op_template, "rax", "rbx", "div rbx", "rdx");
+		case '^': return format(op_template, "rbx", "rax", "xor rax, rbx", "rax");
+		case '|': return format(op_template, "rbx", "rax", "or rax, rbx", "rax");
+		case '&': return format(op_template, "rbx", "rax", "and rax, rbx", "rax");
+		case '<': return format(cmp_template, "setl");
+		case '>': return format(cmp_template, "setg");
+		case '!': return format(cmp_template, "sete");
 		default:
 			println("[Compiler] Error: Operator '{c}' is not supported.", op);
 			exit(1);
 	}
-}
 
-char * as_f_2_binop(struct Ast * ast, char * template, char * op, char left, char right) {
-	if (strcmp(op, "++") == 0) {
-		if (right) { // ++var
-			return format("mov rax, [rbp{Si}]\n"
-							"inc rax\n"
-							"mov [rbp{Si}], rax\n"
-							"push rax\n", ast->int_value, ast->int_value);
-		} else { // var++
-			return format (	"mov rax, [rbp{Si}]\n"
-							"push rax\n"
-							"inc rax\n"
-							"mov [rbp{Si}], rax\n", ast->int_value, ast->int_value);
-		}
-	} else if (strcmp(op, "--") == 0) {
-		if (right) { // ++var
-			return format("mov rax, [rbp{Si}]\n"
-							"dec rax\n"
-							"mov [rbp{Si}], rax\n"
-							"push rax\n", ast->int_value, ast->int_value);
-		} else { // var++
-			return format (	"mov rax, [rbp{Si}]\n"
-							"push rax\n"
-							"dec rax\n"
-							"mov [rbp{Si}], rax\n", ast->int_value, ast->int_value);
-		}
-	} else if (strcmp(op, "<<") == 0) {
-		return format(template, "rax", "rcx", "shl rax, cl", "rax");
-	} else if (strcmp(op, ">>") == 0) {
-		return format(template, "rax", "rbx", "shr rax, rbx", "rax");
-	} else {
-		println("[Compiler] Error: Operator '{s}' is not supported.", op);
-		exit(1);
-	}
 }
 
 char * as_f_expr(struct Ast * ast, struct List * list) {
 	
-	char * left = 0, * right = 0, * operation = 0,
-		 * template =	"pop {s}\n"
-						"pop {s}\n"
-						"{s}\n"
-						"push {s}\n", 
-		 * op = 0;
+	char * left = 0, * right = 0, * operation = 0, * op = 0;
 
 	unsigned int operator_len = 0;
-
-	print_ast("Expr: {s}\n", ast);
 
 	if (ast->left) {
 		left = as_f(ast->left, list);
@@ -300,19 +417,79 @@ char * as_f_expr(struct Ast * ast, struct List * list) {
 	} else {
 		right = "push 0\n";
 	}
-	
+
+	struct Ast * var = NULL;	
+
 	switch (operator_len) {
 		case 0:
 			println("[Compiler] Error: There was no operator specified."); exit(1);
 		case 1:
-			operation = as_f_1_binop(template, op[0], ast->left != 0, ast->right != 0); break;
-		case 2: {
-			right = 0, left = 0;
-			struct Ast * var = lookup(list,  (ast->left ? ast->left : ast->right)->name);
-			operation = as_f_2_binop(var, template, op, ast->left != 0, ast->right != 0); break;
+			operation = as_f_1_binop(op[0]);
+			break;
+		case 2:
+			if (strcmp(op, "++") == 0) {
+				if (ast->right != NULL) { // ++var
+					if (ast->left == NULL) {
+						left = 0;
+					}
+					var = lookup(list, ast->right->name);
+					operation = format("mov rax, [rbp{Si}]\n"
+							"inc rax\n"
+							"mov [rbp{Si}], rax\n"
+							"{s}\n", var->int_value, var->int_value, var->push
+																	? "push rax"
+																	: "mov [rsp], rax");
+				} else { // var++
+					if (ast->right == NULL) {
+						right = 0;
+					}
+					var = lookup(list, ast->left->name);
+					operation = format ("mov rax, [rbp{Si}]\n"
+							"{s}\n"
+							"inc rax\n"
+							"mov [rbp{Si}], rax\n", var->int_value, var->push
+																	? "push rax"
+																	: "mov [rsp], rax"
+							, var->int_value);
+				}
+			} else if (strcmp(op, "--") == 0) {
+				if (ast->right != NULL) { // --var
+					if (ast->left == NULL) {
+						left = 0;
+					}
+					var = lookup(list, ast->right->name);
+					operation = format("mov rax, [rbp{Si}]\n"
+							"dec rax\n"
+							"mov [rbp{Si}], rax\n"
+							"{s}\n", var->int_value, var->int_value, var->push
+																	? "push rax"
+																	: "mov [rsp], rax");
+				} else { // var--
+					if (ast->right == NULL) {
+						right = 0;
+					}
+					var = lookup(list, ast->left->name);
+					operation = format ("mov rax, [rbp{Si}]\n"
+							"{s}\n"
+							"dec rax\n"
+							"mov [rbp{Si}], rax\n", var->int_value, var->push
+																	? "push rax"
+																	: "mov [rsp], rax"
+							, var->int_value);
 			}
+		} else if (strcmp(op, "<<") == 0) {
+			operation = format(op_template, "rax", "rcx", "shl rax, cl", "rax");
+		} else if (strcmp(op, ">>") == 0) {
+			operation = format(op_template, "rax", "rbx", "shr rax, rbx", "rax");
+		} else if (strcmp(op, "==") == 0) {
+			operation = format(cmp_template, "sete");
+		} else if (strcmp(op, "!=") == 0) {
+			operation = format(cmp_template, "setz");
+		} else {
+			println("[Compiler] Error: MOperator '{s}' is not supported.", op);
+			exit(1);
+		}
 	}
-
 
 	return format("{3s}", right, left, operation);
 
@@ -357,35 +534,38 @@ char * as_f_int(struct Ast * ast, struct List * list) {
 }
 
 char* as_f(struct Ast * ast, struct List * list) {
-	
-	char * next_value = "";
 
 	#ifdef AS_F_DEBUG
 		print_ast("Debug [Assembly Frontend]: {s}\n", ast);
 	#endif
 
 	switch(ast->type) {
-		case AST_COMPOUND: next_value = as_f_compound(ast, list); break;
-		case AST_FUNCTION: next_value = as_f_function(ast, list); break;
-		case AST_ASSIGNMENT: next_value = as_f_assignment(ast, list); break;
-		case AST_DECLARE: next_value = as_f_declare(ast, list); break;
-		case AST_VARIABLE: next_value = as_f_variable(ast, list); break;
-		case AST_STATEMENT_FOR: next_value = as_f_for(ast, list); break;
-		case AST_STATEMENT_IF: next_value = as_f_if(ast, list); break;
-		case AST_STATEMENT_RETURN: next_value = as_f_return(ast, list); break;
-		case AST_STATEMENT_WHILE: next_value = as_f_while(ast, list); break;
-		case AST_CALL: next_value = as_f_call(ast, list); break;
-		case AST_VALUE: next_value = as_f_value(ast, list); break;
-		case AST_ARRAY: next_value = as_f_array(ast, list); break;
-		case AST_ACCESS: next_value = as_f_access(ast, list); break;
-		case AST_NOOP: next_value = ast->str_value; break;
-		case AST_STRING: next_value = as_f_const_string(ast, list); break;
-		case AST_INT: next_value = as_f_int(ast, list); break;
-		case AST_EXPR: next_value = as_f_expr(ast, list); break;
-		default: println("[Assembler Frontend]: Unknown AST type '{s}'({i})", ast_type_to_str(ast->type), ast->type); exit(1);
+		case AST_COMPOUND: return as_f_compound(ast, list);
+		case AST_FUNCTION: return as_f_function(ast, list);
+		case AST_ASSIGNMENT: return as_f_assignment(ast, list);
+		case AST_DECLARE: return as_f_declare(ast, list);
+		case AST_VARIABLE: return as_f_variable(ast, list);
+		case AST_FOR: return as_f_for(ast, list);
+		case AST_IF: return as_f_if(ast, list);
+		case AST_RETURN: return as_f_return(ast, list);
+		case AST_WHILE: return as_f_while(ast, list);
+		case AST_DO: return as_f_do(ast, list);
+		case AST_DO_WHILE: return as_f_do_while(ast, list);
+		case AST_BREAK: return as_f_break(ast, list);
+		case AST_CONTINUE: return as_f_continue(ast, list);
+		case AST_CALL: return as_f_call(ast, list);
+		case AST_VALUE: return as_f_value(ast, list);
+		case AST_ARRAY: return as_f_array(ast, list);
+		case AST_ACCESS: return as_f_access(ast, list);
+		case AST_NOOP: return ast->str_value;
+		case AST_STRING: return as_f_const_string(ast, list);
+		case AST_INT: return as_f_int(ast, list);
+		case AST_EXPR: return as_f_expr(ast, list);
+		default: 
+			println("[Assembler Frontend]: Unknown AST type '{s}'({i})", ast_type_to_str(ast->type), ast->type); 
+			exit(1);
 	}
 
-	return next_value;
 }
 
 char * as_f_root(struct Ast * root, struct Visitor * visitor, struct List * list) {
@@ -403,8 +583,7 @@ char * as_f_root(struct Ast * root, struct Visitor * visitor, struct List * list
 							"mov eax, 60\n"
 							"syscall\n"
 							"\n"
-							"{s}\n"
-							"{s}\n";
+							"{2s:\n}\n";
 
 	char * next_value = as_f(root, list);
 

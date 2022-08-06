@@ -16,10 +16,12 @@ struct Ast * visitor_lookup(struct List * list, const char * name) {
 }
 
 struct Visitor * init_visitor(struct Ast * root) {
-	struct Visitor * visitor = calloc(1, sizeof(struct Visitor));
+	struct Visitor * visitor = malloc(sizeof(struct Visitor));
 	visitor->node = init_ast(AST_COMPOUND);
 	visitor->builtins = calloc(1, sizeof(char));
 	visitor->section_data = calloc(1, sizeof(char));
+	visitor->data_count = 0;
+	visitor->jump_targets = 0;
 
 	init_builtins(visitor->node->nodes);
 
@@ -117,14 +119,66 @@ struct Ast * visitor_visit_return(struct Visitor * visitor, struct Ast * node, s
 }
 
 struct Ast * visitor_visit_if(struct Visitor * visitor, struct Ast * node, struct List * list) {
+	
+	node->int_value = visitor->jump_targets++;
+
+	unsigned int prev_size = list->size;
+	struct Ast * value;
+	for (unsigned int i = 0; i < node->nodes->size; ++i) {	
+		value = ((struct Ast *) node->nodes->items[i])->value;
+		node->nodes->items[i] = visitor_visit(visitor, node->nodes->items[i], list);
+		((struct Ast *)node->nodes->items[i])->value = value;
+	}
+	while (prev_size != list->size) list_pop(list);
+	
 	return node;
 }
 
 struct Ast * visitor_visit_for(struct Visitor * visitor, struct Ast * node, struct List * list) {
+	node->int_value = visitor->jump_targets++;
+	unsigned int prev_size = list->size;
+	
+	struct Ast * scope = list_at(node->nodes, 0);
+	if (scope != NULL)
+		node->nodes->items[0] = visitor_visit(visitor, scope, list);
+	
+	while (prev_size != list->size) list_pop(list);
+	
 	return node;
 }
 
 struct Ast * visitor_visit_while(struct Visitor * visitor, struct Ast * node, struct List * list) {
+
+	node->int_value = visitor->jump_targets++;
+	unsigned int prev_size = list->size;
+	
+	if (node->value != NULL)
+		node->value = visitor_visit(visitor, node->value, list);
+	
+	while (prev_size != list->size) list_pop(list);
+	
+	return node;
+}
+
+struct Ast * visitor_visit_do(struct Visitor * visitor, struct Ast * node, struct List * list) {
+	node->int_value = visitor->jump_targets++;
+	unsigned int prev_size = list->size;
+
+	node->value = visitor_visit(visitor, node->value, list);
+	
+	while (prev_size != list->size) list_pop(list);
+	
+	return node;
+}
+
+struct Ast * visitor_visit_continue(struct Visitor * visitor, struct Ast * node, struct List * list) {
+
+	node->int_value = visitor->jump_targets - node->int_value;
+	return node;
+}
+
+struct Ast * visitor_visit_break(struct Visitor * visitor, struct Ast * node, struct List * list) {
+	node->int_value = visitor->jump_targets - node->int_value;
 	return node;
 }
 
@@ -139,6 +193,7 @@ struct Ast * visitor_visit_call(struct Visitor * visitor, struct Ast * node, str
 			}
 			return variable->f_ptr(visitor, node, list);
 		} else {
+			node->push = variable->push;
 			node->int_value = variable->int_value;
 		}
 	} else {
@@ -218,15 +273,19 @@ struct Ast * visitor_visit(struct Visitor * visitor, struct Ast * node, struct L
 		case AST_ASSIGNMENT: return visitor_visit_assignment(visitor, node, list);
 		case AST_DECLARE: return visitor_visit_declare(visitor, node, list);
 		case AST_VARIABLE: return visitor_visit_variable(visitor, node, list);
-		case AST_STATEMENT_RETURN: return visitor_visit_return(visitor, node, list);
-		case AST_STATEMENT_IF: return visitor_visit_if(visitor, node, list);
-		case AST_STATEMENT_WHILE: return visitor_visit_while(visitor, node, list);
-		case AST_STATEMENT_FOR: return visitor_visit_for(visitor, node, list);
+		case AST_RETURN: return visitor_visit_return(visitor, node, list);
+		case AST_IF: return visitor_visit_if(visitor, node, list);
+		case AST_WHILE: return visitor_visit_while(visitor, node, list);
+		case AST_FOR: return visitor_visit_for(visitor, node, list);
+		case AST_DO: return visitor_visit_do(visitor, node, list);
+		case AST_DO_WHILE: return visitor_visit_do(visitor, node, list); //might error
 		case AST_CALL: return visitor_visit_call(visitor, node, list);
 		case AST_VALUE: return visitor_visit_value(visitor, node, list);
 		case AST_ARRAY: return visitor_visit_array(visitor, node, list);
 		case AST_ACCESS: return visitor_visit_access(visitor, node, list);
 		case AST_STRING: return visitor_visit_string(visitor, node, list);
+		case AST_BREAK: return visitor_visit_break(visitor, node, list);
+		case AST_CONTINUE: return visitor_visit_continue(visitor, node, list);
 		case AST_EXPR: return node; //visitor_visit_eval(visitor, node, list);
 		case AST_BINOP: return node;
 		case AST_INT: return node;

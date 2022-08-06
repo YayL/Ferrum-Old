@@ -31,7 +31,6 @@ void free_list(struct List *);
  * @param list 
  * @param item
  */
-
 void list_push(struct List *, void *);
 
 /**
@@ -58,3 +57,14 @@ void* list_at(struct List *, int);
  * 
  */
 void print_list(struct List *);
+
+/**
+ * @brief Pre allocate multiple slots for future use
+*/
+void list_reserve(struct List *, unsigned int);
+
+/**
+ * @brief Copy the current list
+ * @return Pointer to the list cop copy
+ */
+void * list_copy(struct List *);

@@ -1,6 +1,6 @@
 main : int () => {
 	
-	print("Hello, World!");
+	put("Hello, World!");
 
 	return 0; // optional
 }

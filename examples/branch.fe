@@ -6,17 +6,22 @@ main : int () => {
 	
 	if (squared == 9) {
 		put("3^2");
-	else if (squared == number) {
+	} else if (squared == number) {
 		put("1^2");
 	} else {
 		put("Not 3^2 or 1^2");
 	}
 
-
+	show(number);
+	show(squared);
 	
 	return 0;
 }
 
+pow : int (base: int, exponent: int) => {
+	return base * base;
+}
+
 square: int (num: int) => {
-	return num*num;
+	return pow(num, 2);
 }

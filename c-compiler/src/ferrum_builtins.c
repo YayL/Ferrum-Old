@@ -16,16 +16,13 @@ struct Ast * _builtin_print(struct Visitor * visitor, struct Ast * node, struct 
 	const char * func_template = "print:\n"
 				"push rbp\n"
 				"mov rbp, rsp\n"
-				"push rsi\n"
-				"push rdx\n"
-				"push rax\n"
 				"mov rsi, [rbp+0x10]\n"
 				"xor rdx, rdx\n"
 				"strlen:\n"
-				"mov al, [rsi + rdx]\n"
-				"inc rdx\n"
-				"cmp al, 0x0\n"
-				"jnz strlen\n"
+					"mov al, [rsi + rdx]\n"
+					"inc rdx\n"
+					"cmp al, 0x0\n"
+					"jnz strlen\n"
 				"dec rdx\n"
 				"mov rax, 1\n"
 				"mov rdi, 1\n"
@@ -35,13 +32,11 @@ struct Ast * _builtin_print(struct Visitor * visitor, struct Ast * node, struct 
 				"mov rax, 1\n"
 				"mov rdi, 1\n"
 				"syscall\n"
-				"pop rax\n"
-				"pop rdx\n"
-				"pop rsi\n"
 				"pop rbp\n"
 				"ret\n";
 	
 	visitor->builtins = format(visitor->builtins, func_template);
+	node->push = 0;
 	
 	set_arg_length(visitor, node, 1);
 
@@ -52,28 +47,18 @@ struct Ast * _builtin_put(struct Visitor * visitor, struct Ast * node, struct Li
 
     if (node->nodes->size != 1 || ((struct Ast *) node->nodes->items[0])->type != AST_STRING) {
       println("Error [Runtime]: Funtion put takes only one string literal!");
-    }	
+    }
 
     const char * func_template = "put:\n"
-				"push rbp\n"
-				"mov rbp, rsp\n"
-                "push rsi\n"
-                "push rdx\n"
-                "push rax\n"
-                "push rdi\n"
-                "mov rsi, [rbp + 0x18]\n" // length
-                "mov rdx, [rbp + 0x10]\n" // str address
+                "mov rsi, [rsp + 0x10]\n" // length
+                "mov rdx, [rsp + 0x08]\n" // str address
                 "mov rax, 1\n"
                 "mov rdi, 1\n"
                 "syscall\n"
-                "pop rdi\n"
-                "pop rax\n"
-                "pop rdx\n"
-                "pop rsi\n"
-				"pop rbp\n"
                 "ret\n";
 	
-	visitor->builtins = format("{2s}", visitor->builtins, func_template); 
+	visitor->builtins = format("{2s}", visitor->builtins, func_template);
+	node->push = 0;
 	
 	set_arg_length(visitor, node, 2);
 
@@ -86,10 +71,6 @@ struct Ast * _builtin_show(struct Visitor * visitor, struct Ast * node, struct L
 	const char * func_template = "\nshow:\n"
 				"push rbp\n"
 				"mov rbp, rsp\n"
-				"push rsi\n"
-				"push rdx\n"
-				"push rax\n"
-				"push rcx\n"
 				"mov rax, [rbp+0x10]\n"
 				"xor rdx, rdx\n"
 				"mov rsi, 10\n"
@@ -115,15 +96,12 @@ struct Ast * _builtin_show(struct Visitor * visitor, struct Ast * node, struct L
 					"dec rcx\n"
 					"cmp rcx, 0\n"
 				"jg show_print_stack\n"
-				"pop rcx\n"
-				"pop rax\n"
-				"pop rdx\n"
-				"pop rsi\n"
 				"pop rbp\n"
 				"ret\n";
 
 
 	visitor->builtins = format("{2s}", visitor->builtins, func_template);
+	node->push = 0;
 
 	set_arg_length(visitor, node, 1);
 

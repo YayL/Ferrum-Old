@@ -1,0 +1,13 @@
+1) Replace push and then pop afterwards with mov instructions
+	push a
+	push b
+	pop c
+	pop d
+	->
+	mov d, a
+	mov c, b
+
+2) Replace 64 bit registers with correct the correct size for that "variable" by showing the size with a comment
+	mov rax, 8 ; 32
+	->
+	mov eax, 8

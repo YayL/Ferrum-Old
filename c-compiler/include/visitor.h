@@ -7,7 +7,7 @@ struct Visitor {
 	struct Ast * node;
 	char * builtins;
 	char * section_data;
-	int data_count;
+	unsigned int data_count, jump_targets;
 };
 
 struct Ast * visitor_lookup(struct List *, const char *);
@@ -24,6 +24,8 @@ struct Ast * visitor_visit_return(struct Visitor *, struct Ast *, struct List *)
 struct Ast * visitor_visit_if(struct Visitor *, struct Ast *, struct List *);
 struct Ast * visitor_visit_while(struct Visitor *, struct Ast *, struct List *);
 struct Ast * visitor_visit_for(struct Visitor *, struct Ast *, struct List *);
+struct Ast * visitor_visit_do_while(struct Visitor *, struct Ast *, struct List *);
+struct Ast * visitor_visit_do(struct Visitor *, struct Ast *, struct List *);
 struct Ast * visitor_visit_call(struct Visitor *, struct Ast *, struct List *);
 struct Ast * visitor_visit_value(struct Visitor *, struct Ast *, struct List *);
 struct Ast * visitor_visit_array(struct Visitor *, struct Ast *, struct List *);
