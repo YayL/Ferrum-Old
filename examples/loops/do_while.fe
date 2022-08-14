@@ -1,0 +1,26 @@
+/* 
+	The do-while statement works sort of like a label which you can jump to
+	using continue or to the end using break.
+*/
+main : int () => {
+	foo: int = pow(2, 5);
+	show(foo);
+}
+
+pow: int (base: int, exponent: int) => {
+	if (exponent == 0)
+		return 1;
+	else if (base == 1)
+		return 1;
+	else if (base == 0)
+		return 0;
+	else if (exponent == 1)
+		return base;
+
+	res: int = base;
+	do {
+		res = res * base;
+	} while ((--exponent) != 1);
+	return res;
+}
+

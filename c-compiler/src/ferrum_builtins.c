@@ -5,7 +5,7 @@
 
 void set_arg_length(struct Visitor * visitor, struct Ast * node, unsigned int len) {
 
-	struct Ast * func = visitor_lookup(visitor->node->nodes, node->name);
+	struct Ast * func = visitor_lookup(visitor->root, node->name);
 	func->int_value = len;
 	node->int_value = len;
 
@@ -21,7 +21,7 @@ struct Ast * _builtin_print(struct Visitor * visitor, struct Ast * node, struct 
 				"strlen:\n"
 					"mov al, [rsi + rdx]\n"
 					"inc rdx\n"
-					"cmp al, 0x0\n"
+					"test al\n"
 					"jnz strlen\n"
 				"dec rdx\n"
 				"mov rax, 1\n"

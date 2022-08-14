@@ -65,11 +65,11 @@ struct Ast * parser_parse_statement(struct Parser * parser) {
 
 		loop_if: {	
 			parser_eat(parser, TOKEN_LPAREN);
-			struct Ast * if_statement;
-			ast->value = parser_parse_expr(parser);
+			struct Ast * if_statement = NULL;
+			ast->left = parser_parse_expr(parser);
 			parser_eat(parser, TOKEN_RPAREN);
 			if_statement = parser_parse_scope(parser);
-			if_statement->value = ast->value;
+			if_statement->left = ast->left;
 			list_push(ast->nodes, if_statement);
 
 			if (strcmp(parser->token->value, "else") == 0) {
@@ -80,7 +80,7 @@ struct Ast * parser_parse_statement(struct Parser * parser) {
 				}
 				list_push(ast->nodes, parser_parse_scope(parser));
 			}
-			ast->value = NULL;
+			ast->left = NULL;
 		}
 	
 	} else if (strcmp(name, "for") == 0) {
@@ -92,6 +92,10 @@ struct Ast * parser_parse_statement(struct Parser * parser) {
 			ast->left = parser_parse_expr(parser);
 		parser_eat(parser, TOKEN_SEMI);
 		
+		if (parser->token->type == TOKEN_SEMI) {
+			println("[Syntax Error]: For loop must have a condition for exiting the loop");
+			exit(1);
+		}
 		ast->value = parser_parse_expr(parser);
 		parser_eat(parser, TOKEN_SEMI);
 
@@ -121,6 +125,8 @@ struct Ast * parser_parse_statement(struct Parser * parser) {
 			parser_eat(parser, TOKEN_LPAREN);
 			ast->left = parser_parse_expr(parser);
 			parser_eat(parser, TOKEN_RPAREN);
+		} else {
+			parser_eat(parser, TOKEN_SEMI);
 		}
 	} else if (strcmp(name, "continue") == 0) {
 		if (parser->token->type == TOKEN_INT) {
@@ -179,8 +185,10 @@ struct Ast * parser_parse_id(struct Parser * parser) {
 			parser_eat(parser, TOKEN_RBRACKET);
 
 		} else if (parser->token->type == TOKEN_LPAREN) {
-			ast->value = parser_parse_list(parser);
-			ast->type = AST_FUNCTION;
+			struct Ast * f = parser_parse_list(parser);
+			f->name = ast->name;
+			free(ast);
+			ast = f;
 		} else {
 			if (parser->token->type == TOKEN_EQUALS) {
 				parser_eat(parser, TOKEN_EQUALS);
@@ -333,18 +341,20 @@ struct Ast * parser_parse_expr(struct Parser * parser) {
 }
 
 struct Ast * parser_parse_scope(struct Parser * parser) {
-
-	parser_eat(parser, TOKEN_LBRACE);
-
 	struct Ast * scope = init_ast(AST_COMPOUND);
-	while(parser->token->type != TOKEN_RBRACE) {
-		struct Ast * curr = parser_parse_expr(parser);
-		list_push(scope->nodes, curr);
-		if (parser->_prev->type != TOKEN_RBRACE)
-			parser_eat(parser, TOKEN_SEMI);
-	}
+	if (parser->token->type == TOKEN_LBRACE) {	
+		parser_eat(parser, TOKEN_LBRACE);
 
-	parser_eat(parser, TOKEN_RBRACE);
+		while(parser->token->type != TOKEN_RBRACE) {
+			list_push(scope->nodes, parser_parse_expr(parser));
+			if (parser->_prev->type != TOKEN_RBRACE && parser->_prev->type != TOKEN_SEMI)
+				parser_eat(parser, TOKEN_SEMI);
+		}
+		parser_eat(parser, TOKEN_RBRACE);
+	} else {
+		list_push(scope->nodes, parser_parse_expr(parser));
+		parser_eat(parser, TOKEN_SEMI);
+	}
 
 	return scope;
 }

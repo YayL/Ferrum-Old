@@ -1,10 +1,9 @@
 main : int () => {
 	
-	squared: int;
+	squared: int = 0;
 	number: int = 3;
-	squared = square(number);
 	
-	if (squared == 9) {
+	if ((squared = square(number++)) == square(number)) {
 		put("3^2");
 	} else if (squared == number) {
 		put("1^2");
@@ -18,10 +17,6 @@ main : int () => {
 	return 0;
 }
 
-pow : int (base: int, exponent: int) => {
-	return base * base;
-}
-
 square: int (num: int) => {
-	return pow(num, 2);
+	return num * num;
 }

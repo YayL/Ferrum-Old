@@ -43,13 +43,18 @@ void list_push(struct List *, void *);
 void list_pop(struct List *);
 
 /**
+ * @brief Resize the array by popping multiple values
+*/
+
+void list_shrink(struct List *, unsigned int);
+
+/**
  * @brief Return the item at a certain index in the list
  * 
  * @param list 
  * @param index 
  * @return void* 
  */
-
 void* list_at(struct List *, int);
 
 /**

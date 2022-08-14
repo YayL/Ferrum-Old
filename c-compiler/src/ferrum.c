@@ -14,18 +14,20 @@ void ferrum_compile(char * src) {
 	struct Lexer * lexer = init_lexer(src);
 	struct Parser * parser = init_parser(lexer);
 	struct Ast * root = parser_parse(parser);
-	struct Visitor * runtime = init_visitor(root);
+
+	FILE * out = open_file("ferrum.asm", "wb");
+
+	struct Visitor * runtime = init_visitor(root, out);
 	
-	struct Ast * visited_root = visitor_visit(runtime, root, init_list(sizeof(struct Ast)));
+	visitor_visit_root(runtime, root);
 
-	char * src_code = as_f_root(visited_root, runtime, init_list(sizeof(struct Ast)));
+	as_f_root(root, runtime, out);
 
-	write_file("ferrum.asm", src_code);
+	fclose(out);
 
 	char * output = exec("nasm -f elf64 ferrum.asm -o ferrum.o && ld ferrum.o -o ferrum");
-
-	println("{s}", output);
 }
+
 
 void ferrum_compile_file(char * filename) {
 

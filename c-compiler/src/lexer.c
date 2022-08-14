@@ -98,7 +98,14 @@ struct Token * lexer_parse_string(struct Lexer * lexer) {
 }
 
 struct Token * lexer_parse_comment(struct Lexer * lexer) {
-	while(lexer->src[++lexer->i] != '\n');
+	char multi_line = lexer->src[lexer->i + 1] == '*';
+	if (multi_line) {
+		while(!(lexer->src[++lexer->i] == '*' && (lexer->c = lexer->src[++lexer->i]) == '/')
+				&& lexer->c != EOF);
+	} else {
+		while((lexer->c = lexer->src[++lexer->i]) != '\n' 
+				&& lexer->c != EOF);
+	}
 	lexer->c = lexer->src[lexer->i];
 	return lexer_next_token(lexer);
 }
@@ -196,7 +203,7 @@ struct Token * lexer_next_token(struct Lexer * lexer) {
 			case ';': return lexer_advance_current(lexer, TOKEN_SEMI);
 			case '"': return lexer_advance_with(lexer, lexer_parse_string(lexer));
 			case '/':
-				if (lexer_peek(lexer, 1) == '/')
+				if (lexer_peek(lexer, 1) == '/' || lexer_peek(lexer, 1) == '*')
 					return lexer_parse_comment(lexer);
 			case '+':
 			case '-':

@@ -48,9 +48,16 @@ void list_pop(struct List * list) {
 		return;
 
 	list->items[list->size] = NULL;
-	free(list->items[list->size]);
+	free(list->items[list->size--]);
 }
 
+void list_shrink(struct List * list, unsigned int new_size) {	
+	if (list->size == 0)
+		return;
+
+	while (list->size != new_size) list_pop(list);
+
+}
 
 void* list_at(struct List * list, int index) {
 
@@ -79,11 +86,11 @@ void list_reserve(struct List * list, unsigned int additions) {
 }
 
 void * list_copy(struct List * list) {
+	struct List * copy = init_list(list->item_size);
 	if (list == NULL || list->size == 0) {
-		return list;
+		return copy;
 	}
 
-	struct List * copy = init_list(list->item_size);
 	copy->size = list->size;
 	list_reserve(copy, copy->size);	
 
