@@ -129,7 +129,6 @@ void as_f_if (struct Ast * node) {
 			as_f(expr->left); // eval
 			gen_pop();
 			gen_test();
-			println("111");
 			if (list_at(node->nodes, i + 1) == NULL) {
 				gen_jz(outfp, ".L{u}_end\n", node->int_value);
 			} else {

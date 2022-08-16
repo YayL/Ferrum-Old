@@ -7,7 +7,7 @@
 
 struct Lexer * init_lexer(char* src) {
 
-	struct Lexer * lexer = (struct Lexer *) calloc(1, sizeof(struct Lexer));
+	struct Lexer * lexer = calloc(1, sizeof(struct Lexer));
 	lexer->src = src;
 	lexer->size = strlen(src);
 	lexer->i = 0;
@@ -30,8 +30,8 @@ void lexer_skip_whitespaces(struct Lexer * lexer) {
 		switch (lexer->c) {
 			case '\t': lexer->pos = 0; break;
 			case '\n': ++lexer->line;
-			case 13: lexer->pos = 0;
-			case ' ': break;
+			case 13: lexer->pos = 0; break;
+			case ' ': ++lexer->pos; break;
 			default: return;
 		}
 		lexer_advance(lexer);
@@ -45,7 +45,8 @@ char lexer_peek(struct Lexer * lexer, int offset) {
 
 struct Token * lexer_parse_id(struct Lexer * lexer) {
 	unsigned int copy = lexer->i, size;
-	while(isalpha(lexer->c) || lexer->c == '_') lexer_advance(lexer);
+	while(isalpha(lexer->c) || lexer->c == '_' || isdigit(lexer->c)) 
+		lexer_advance(lexer);
 	
 	size = lexer->i - copy;
 	lexer->i -= size;
@@ -72,6 +73,8 @@ struct Token * lexer_parse_int(struct Lexer * lexer) {
 		value = realloc(value, (++size) * sizeof(char));
 		strncat(value, (char[]) {lexer->c, '\0'}, 2);
 		lexer_advance(lexer);
+		if (lexer->c == '_')
+			lexer_advance(lexer);
 	}
 
 	return init_token(value, TOKEN_INT, lexer->line, lexer->pos);
@@ -83,7 +86,12 @@ struct Token * lexer_parse_string(struct Lexer * lexer) {
 
 	while(lexer->src[++end] != lexer->c) {
 		if(end == lexer->size) {
-			println("\n[Lexer]: End of file found while reading string.");
+			println("\n[Parsing Error]: End of file found while reading string.");
+			exit(1);
+		}
+		else if (lexer->src[end] == '\n') {
+			println("[Parsing Error]: {u}:{u} Newline inside of string literal" 
+						"is not allowed\n", lexer->line, lexer->pos);
 			exit(1);
 		}
 	}

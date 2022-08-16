@@ -1,6 +1,4 @@
-main : int () => {
-	
-	put("Hello, World!");
 
-	return 0; // optional
+main : int () => {
+	put("Hello, World!");
 }

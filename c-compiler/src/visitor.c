@@ -81,6 +81,7 @@ void visitor_visit_function(struct Visitor * visitor, struct Ast * node) {
 
 	for(size_t i = 0; i < node->nodes->size; ++i) {
 		struct Ast * parameter = list_at(node->nodes, i);
+		unsigned int type = parameter->type;
 		if (parameter->type != AST_DECLARE || parameter->value != NULL) {
 			println("[Syntax Error]: Function parameters can only be strict declarations");
 			exit(1);
@@ -106,8 +107,6 @@ void visitor_visit_assignment(struct Visitor * visitor, struct Ast * node) {
 		println("[Error]: Variable '{s}' is not defined in scope", node->name);
 		exit(1);
 	}
-
-	println("1");
 	
 	next(visitor, node, node->scope);
 }
@@ -190,8 +189,6 @@ void visitor_visit_for(struct Visitor * visitor, struct Ast * node) {
 
 	struct Ast * scope = list_at(node->nodes, 0);
 
-	print_list(node->nodes);
-
 	if (scope != NULL) {
 		scope->scope = node;
 		visitor_visit(visitor, scope);
@@ -266,8 +263,6 @@ void visitor_visit_call(struct Visitor * visitor, struct Ast * node) {
 }
 
 void visitor_visit_expr(struct Visitor * visitor, struct Ast * node) {
-	
-	print_ast("expr: {s}\n", node);
 
 	if (node->right != NULL) {
 		node->right->scope = node->scope;
@@ -308,7 +303,7 @@ struct Ast * visitor_visit_string(struct Visitor * visitor, struct Ast * node) {
     unsigned int str_id = visitor->data_count++;
 
     const char * data_template = 	"{s}"
-									"{s} db \"{s}\", 0xA, 0xD\n"
+									"{s} db \"{s}\"\n"
 									"{s}_len equ $-{s}\n";
 
 	char * const_str = format("str_{u}", str_id);

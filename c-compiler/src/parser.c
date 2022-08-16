@@ -181,7 +181,11 @@ struct Ast * parser_parse_id(struct Parser * parser) {
 			#ifdef PARSER_DEBUG
 				print_token("\t\t{s}\n", parser->token);
 			#endif
-			ast->type = AST_ARRAY;
+			ast->type = AST_DECLARE;
+			struct Ast * arr = init_ast(AST_ARRAY);
+			arr->int_value = atoi(parser->token->value);
+			parser_eat(parser, TOKEN_INT);
+			ast->left = arr;
 			parser_eat(parser, TOKEN_RBRACKET);
 
 		} else if (parser->token->type == TOKEN_LPAREN) {
@@ -266,10 +270,11 @@ struct Ast * parser_parse_int(struct Parser * parser) {
 
 struct Ast * parser_parse_string(struct Parser * parser) {
 
-	struct Ast * ast = init_ast(AST_STRING);	
-	ast->name = format("{s}", parser->token->value);
-
-	parser_eat(parser, TOKEN_STRING);
+	struct Ast * ast = init_ast(AST_STRING);
+	while (parser->token->type == TOKEN_STRING) {
+		ast->name = format("{2s}", ast->name, parser->token->value);
+		parser_eat(parser, TOKEN_STRING);
+	}
 	return ast;
 }
 

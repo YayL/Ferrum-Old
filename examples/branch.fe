@@ -3,13 +3,12 @@ main : int () => {
 	squared: int = 0;
 	number: int = 3;
 	
-	if ((squared = square(number++)) == square(number)) {
+	if (square(number++) == (squared = square(number) + 1))
 		put("3^2");
-	} else if (squared == number) {
+	else if (squared == number)
 		put("1^2");
-	} else {
+	else
 		put("Not 3^2 or 1^2");
-	}
 
 	show(number);
 	show(squared);

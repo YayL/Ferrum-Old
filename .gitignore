@@ -6,3 +6,4 @@
 /c-compiler/*
 !/c-compiler/include
 !/c-compiler/src
+!/c-compiler/submodule
