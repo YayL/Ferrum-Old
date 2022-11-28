@@ -27,6 +27,11 @@
  ---------------------------------------------------------------
  */
 
+/**
+ * @brief Find a variable in scope of the passed scope
+ * @return The variable AST pointer or NULL if not found
+ * */
+
 struct Ast * lookup(struct Ast * scope, char * name) {
 	do {
 		for(size_t i = 0; i < scope->v_variables->size; ++i) {
@@ -94,8 +99,23 @@ void as_f_variable(struct Ast * node) {
 	}
 
 	const char * template =	"; variable\n"
-							"mov rax, [rbp{Si}]\n"
+							"mov {s}, [rbp{Si}]\n"
 							"push rax\n";
+	char * reg = NULL;
+	unsigned int type = 3; //get_registor_size(node->data_type);
+
+	if (type == 0) {
+		reg = "al";
+	} else if (type == 1) {
+		reg = "ax";
+	} else if (type == 2) {
+		reg = "eax";
+	} else if (type == 3) {
+		reg = "rax";
+	} else {
+		println("[Dev Error]: Register type is for some reason not 0-3");
+		exit(1);
+	}
 
 	gen_load_var(variable->int_value);
 	gen_push();
@@ -215,6 +235,7 @@ void as_f_call(struct Ast * node) {
 	fputs("push r8\nmov r8, rsp\n", outfp);
 	for (size_t i = 0; i < len; ++i) {
 		struct Ast * arg = list_at(node->nodes, len - i - 1);
+		arg->scope = node->scope;
 		as_f(arg);
 	}
 	
@@ -228,36 +249,19 @@ void as_f_call(struct Ast * node) {
 	#endif
 }
 
-int as_f_int_arith(char op, struct Ast * node, struct Ast * variable) {
+int as_f_int_arith(char op, struct Ast * node, unsigned int i) {
 	const char * cmp_template = "pop rax\n"
 							"pop rbx\n"
 							"cmp rax, rbx\n"
 							"{s} al\n"
 							"push rax\n",
+
 			* op_template =	"pop {s}\n"
 							"pop {s}\n"
 							"{s}\n"
 							"push {s}\n";
 
 	switch (op) {
-		case OP_DEC: {
-						if (variable == NULL) {
-							println("[Syntax Error]: Operator '--' must operate directly on a variable.");exit(1);
-						}else if (node->left != NULL) // var++
-							gen_post_inc_dec(outfp, "dec", variable->int_value, variable->push != 0);
-						else 
-							gen_pre_inc_dec(outfp, "dec", variable->int_value, variable->push != 0);
-						break;
-					 }
-		case OP_INC: {
-						if (variable == NULL) {
-							println("[Syntax Error]: Operator '++' must operate directly upon a variable.");exit(1);
-						}else if (node->left != NULL) // var++
-							gen_post_inc_dec(outfp, "inc", variable->int_value, variable->push != 0);
-						else 
-							gen_pre_inc_dec(outfp, "inc", variable->int_value, variable->push != 0);
-						break;
-					 }
 		case '+': writef(outfp, op_template, "rax", "rbx", "add rax, rbx", "rax"); break;
 		case '-': writef(outfp, op_template, "rax", "rbx", "sub rax, rbx", "rax"); break;
 		case '*': writef(outfp, op_template, "rax", "rbx", "mul rbx", "rax"); break;
@@ -277,13 +281,35 @@ int as_f_int_arith(char op, struct Ast * node, struct Ast * variable) {
 		case '!': writef(outfp, cmp_template, "sete"); break;
 		case OP_LOGOR: break;
 		case OP_LOGAND: break;
+		case OP_DEC: {
+			struct Ast * variable = lookup(node->scope, ((struct Ast *)list_at(node->nodes, i - 1))->name);
+			if (variable == NULL) {
+				println("[Syntax Error]: Operator '--' must operate directly on a variable.");
+				exit(1);
+			} else if (node->left != NULL) { // var++
+				gen_post_inc_dec(outfp, "dec", variable->int_value, variable->push);
+			} else {
+				gen_pre_inc_dec(outfp, "dec", variable->int_value, variable->push);
+			} break;
+		}
+		case OP_INC: {
+			struct Ast * variable = lookup(node->scope, ((struct Ast *)list_at(node->nodes, i - 1))->name);
+			if (variable == NULL) {
+				println("[Syntax Error]: Operator '++' must operate directly upon a variable.");
+				exit(1);
+			} else if (node->left != NULL) {// var++
+				gen_post_inc_dec(outfp, "inc", variable->int_value, variable->push);
+			} else {
+				gen_pre_inc_dec(outfp, "inc", variable->int_value, variable->push);
+			} break;
+		}
 		case OP_ERR:
 		default: return 1;
 	}
 	return 0;
 }
 
-int as_f_float_arith(char op, struct Ast * node, struct Ast * variable) {
+int as_f_float_arith(char op, struct Ast * node, unsigned int i) {
 		const char * cmp_template = "pop rax\n"
 									"pop rbx\n"
 									"cmp rax, rbx\n"
@@ -299,38 +325,22 @@ int as_f_float_arith(char op, struct Ast * node, struct Ast * variable) {
 
 void as_f_expr(struct Ast * node) {
 	
-	struct Ast * var = NULL;
-
-	if (node->right) {
-		#ifdef AS_F_DEBUG
-			print_ast("right: {s}\n", node->right);
-		#endif
-		as_f(node->right);
-		if (node->right->name != NULL)
-			var = lookup(node->scope, node->right->name);
-	}
-
-	if (node->left) {
-		#ifdef AS_F_DEBUG
-			print_ast("left: {s}\n", node->left);
-		#endif
-		as_f(node->left);
-		if (node->left->name != NULL)
-			var = lookup(node->scope, node->left->name);
-	}
+	struct Ast * variable = NULL;
+	struct Ast ** list = (struct Ast **) node->nodes->items;
 	
-	if (node->value == NULL) {
-		println("[Warning]: No operator in expression.");
-		return;
+	for (unsigned int i = 0; i < node->nodes->size; ++i) {
+		if (list[i]->type == AST_BINOP) {
+			char op = str_to_op(list[i]->name);
+			if (as_f_int_arith(op, node, i)) {
+				println("[Error]: Unknown operator: {s}", list[i]->name);
+				print_ast("{s}\n", list[i]);
+				exit(1);
+			}
+		} else {
+			list[i]->scope = node->scope;
+			as_f(list[i]);
+		}
 	}
-
-	char op = str_to_op(node->value->name);
-	if (as_f_int_arith(op, node, var)) {
-		println("[Error]: Unknown operator: {s}", node->value->name);
-		print_ast("{s}\n", node->value);
-		exit(1);
-	}
-
 }
 
 void as_f_array(struct Ast * node) {
@@ -364,7 +374,7 @@ void as_f_int(struct Ast * node) {
 }
 
 void as_f(struct Ast * node) {
-
+	
 	#ifdef AS_F_DEBUG
 		print_ast("[Assembly Frontend]: {s}\n", node);
 	#endif
@@ -415,7 +425,7 @@ void as_f_root(struct Ast * root, struct Visitor * visitor, FILE * out) {
 							"{2s:\n}\n";
 		
 	outfp = out;
-
+    
 	fputs("BITS 64\n", out);
 	if (visitor->section_data != NULL)
 		fputs(visitor->section_data, out);
