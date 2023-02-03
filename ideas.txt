@@ -1,0 +1,25 @@
+Order keyword:
+	Like switch but depending on the input value
+	the order of execution will rotate by the input value
+	
+	Ex:
+
+	x : int = 0;
+	do {
+		print("Start");
+		order (x) {
+			case 0:
+				print("Hello");
+				continue;
+			case 1:
+				print("Goodbye");
+		}
+	}
+	
+	Output:
+
+	Start
+	Hello
+	Start
+	Goodbye
+	Hello
